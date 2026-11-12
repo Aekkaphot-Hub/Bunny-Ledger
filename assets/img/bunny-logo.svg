@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <circle cx="60" cy="60" r="58" fill="#DCEEFB"/>
+  <circle cx="60" cy="60" r="58" fill="none" stroke="#F6B5CB" stroke-width="3" stroke-dasharray="4 6"/>
+  <!-- ears -->
+  <g transform="rotate(-14 47 34)">
+    <ellipse cx="47" cy="30" rx="9.5" ry="21" fill="#FFFDF8" stroke="#4A4E69" stroke-width="2.6"/>
+    <ellipse cx="47" cy="32" rx="4.6" ry="14" fill="#F6B5CB"/>
+  </g>
+  <g transform="rotate(14 73 34)">
+    <ellipse cx="73" cy="30" rx="9.5" ry="21" fill="#FFFDF8" stroke="#4A4E69" stroke-width="2.6"/>
+    <ellipse cx="73" cy="32" rx="4.6" ry="14" fill="#F6B5CB"/>
+  </g>
+  <!-- body -->
+  <ellipse cx="60" cy="95" rx="29" ry="19" fill="#FFFDF8" stroke="#4A4E69" stroke-width="2.6"/>
+  <!-- head -->
+  <ellipse cx="60" cy="62" rx="23" ry="20.5" fill="#FFFDF8" stroke="#4A4E69" stroke-width="2.6"/>
+  <!-- eyes -->
+  <ellipse cx="51" cy="60" rx="2.8" ry="3.3" fill="#4A4E69"/>
+  <ellipse cx="69" cy="60" rx="2.8" ry="3.3" fill="#4A4E69"/>
+  <circle cx="52" cy="58.8" r="1" fill="#fff"/>
+  <circle cx="70" cy="58.8" r="1" fill="#fff"/>
+  <!-- blush -->
+  <ellipse cx="45" cy="67" rx="4.4" ry="2.6" fill="#F6B5CB"/>
+  <ellipse cx="75" cy="67" rx="4.4" ry="2.6" fill="#F6B5CB"/>
+  <!-- nose + mouth -->
+  <path d="M57.6 64.2h4.8L60 66.8z" fill="#E683A6" stroke="#E683A6" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M56 68.6c1.4 1.8 3.2 1.6 4-.6.8 2.2 2.6 2.4 4 .6" fill="none" stroke="#4A4E69" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- notebook -->
+  <g transform="rotate(-6 58 96)">
+    <rect x="38" y="83" width="40" height="27" rx="4" fill="#9CCBF0" stroke="#4A4E69" stroke-width="2.4"/>
+    <rect x="42" y="86" width="32" height="21" rx="2" fill="#FFFDF8"/>
+    <path d="M46 92h20M46 97h24M46 102h14" stroke="#9CCBF0" stroke-width="2" stroke-linecap="round"/>
+    <path d="M67 101.5l2.2 2.2 4-4.6" stroke="#E683A6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- paws -->
+  <ellipse cx="40" cy="93" rx="5.5" ry="4.6" fill="#FFFDF8" stroke="#4A4E69" stroke-width="2.4"/>
+  <!-- pencil -->
+  <g transform="rotate(40 84 84)">
+    <rect x="80" y="64" width="7" height="26" rx="1.5" fill="#F6B5CB" stroke="#4A4E69" stroke-width="2.2"/>
+    <rect x="80" y="64" width="7" height="5" rx="1.5" fill="#E683A6" stroke="#4A4E69" stroke-width="2.2"/>
+    <path d="M80 90l3.5 7 3.5-7z" fill="#FBE3C4" stroke="#4A4E69" stroke-width="2.2" stroke-linejoin="round"/>
+  </g>
+  <ellipse cx="79" cy="88" rx="5.5" ry="4.6" fill="#FFFDF8" stroke="#4A4E69" stroke-width="2.4"/>
+  <!-- sparkles -->
+  <path d="M95 30l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z" fill="#F6B5CB"/>
+  <path d="M22 50l1.1 2.7 2.7 1.1-2.7 1.1L22 57.6l-1.1-2.7-2.7-1.1 2.7-1.1z" fill="#9CCBF0"/>
+</svg>

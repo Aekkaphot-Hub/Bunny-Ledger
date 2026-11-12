@@ -1,0 +1,4 @@
+﻿Order/adjustment ID,Type,Order created time,Order settled time,Total settlement amount,Total revenue,Total fees
+576000000000000001,Order,2026/10/18,2026/10/30,256.68,279,-22.32
+576000000000000002,Order,2026/10/28,2026/11/09,205.40,316,-110.60
+ADJ-778899,Adjustment,,2026/11/09,-15.00,0,0

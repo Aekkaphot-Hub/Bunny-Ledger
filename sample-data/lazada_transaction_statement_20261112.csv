@@ -1,0 +1,6 @@
+﻿Transaction Date,Transaction Type,Fee Name,Order No.,Amount,Paid Status,Statement
+26 Oct 2026,Orders-Sales,Item Price Credit,800001001,450.00,Paid,2026 Oct 20-Oct 26
+26 Oct 2026,Orders-Lazada Fees,Commission,800001001,-40.50,Paid,2026 Oct 20-Oct 26
+26 Oct 2026,Orders-Lazada Fees,Payment Fee,800001001,-13.50,Paid,2026 Oct 20-Oct 26
+09 Nov 2026,Orders-Sales,Item Price Credit,800001002,398.00,Not paid,2026 Nov 03-Nov 09
+09 Nov 2026,Orders-Lazada Fees,Commission,800001002,-35.82,Not paid,2026 Nov 03-Nov 09

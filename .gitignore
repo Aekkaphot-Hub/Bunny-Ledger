@@ -1,0 +1,16 @@
+# ข้อมูลจริงของร้าน (มีชื่อ ที่อยู่ เลขผู้เสียภาษีของลูกค้า) — ห้ามขึ้น GitHub
+ไฟล์จริง/
+*.xlsx
+*.xls
+BunnyLedger-data*.json
+BunnyLedger-backup*.json
+
+# Firebase / tools
+.firebase/
+node_modules/
+firebase-debug.log
+*.log
+
+# OS
+Thumbs.db
+desktop.ini

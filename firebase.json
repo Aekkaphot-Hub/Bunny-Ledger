@@ -1,0 +1,28 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "**/.*",
+      "**/node_modules/**",
+      "ไฟล์จริง/**",
+      "sample-data/**",
+      "**/*.bat",
+      "**/*.ps1",
+      "**/*.md",
+      "**/*.rules",
+      "**/*.json",
+      "**/*.xlsx",
+      "**/*.xls",
+      "**/*.csv"
+    ],
+    "headers": [
+      { "source": "**/*.@(html|js|css|webmanifest)", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+      { "source": "manifest.webmanifest", "headers": [{ "key": "Content-Type", "value": "application/manifest+json" }] }
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

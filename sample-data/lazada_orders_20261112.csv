@@ -1,0 +1,7 @@
+﻿Order Item Id,Order Number,Created at,Status,Seller SKU,Item Name,Paid Price,Shipping Fee,Tracking Code,Shipping Provider,Delivered Date
+90001,800001001,15 Oct 2026 10:15,delivered,RB-DOLL,ตุ๊กตากระต่ายนุ่มนิ่ม,450.00,0,LXTH10001,LEX TH,19 Oct 2026 14:00
+90002,800001002,25 Oct 2026 16:40,delivered,RB-TEE,เสื้อยืดลายกระต่าย,199.00,0,LXTH10002,LEX TH,29 Oct 2026 11:00
+90003,800001002,25 Oct 2026 16:40,delivered,RB-TEE,เสื้อยืดลายกระต่าย,199.00,0,LXTH10002,LEX TH,29 Oct 2026 11:00
+90004,800001003,04 Nov 2026 09:05,shipped,RB-CUP,แก้วน้ำเก็บความเย็น,329.00,0,LXTH10003,LEX TH,
+90005,800001004,11 Nov 2026 20:10,ready_to_ship,RB-PEN,ปากกาเจลสีพาสเทล,59.00,0,,LEX TH,
+90006,800001005,01 Nov 2026 13:00,returned,RB-CASE,เคสมือถือใส,149.00,0,LXTH10005,LEX TH,

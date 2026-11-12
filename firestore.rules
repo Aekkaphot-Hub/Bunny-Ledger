@@ -1,0 +1,13 @@
+rules_version = '2';
+// Bunny Ledger: ผู้ใช้แต่ละคนอ่าน/เขียนได้เฉพาะข้อมูลของตัวเองใน users/{uid}/...
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{collection}/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid
+        && collection in ['orders', 'expenses', 'otherIncome', 'imports', 'settings', 'templates'];
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

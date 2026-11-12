@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bunny Ledger</title>
+  <meta name="description" content="บัญชีรายรับร้านออนไลน์ Shopee Lazada TikTok">
+  <meta name="theme-color" content="#F6B5CB">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Bunny Ledger">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="assets/img/bunny-logo.svg">
+  <link rel="apple-touch-icon" href="assets/img/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Mitr:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <!-- third-party libraries (pinned versions) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+  <div id="app" class="app">
+    <aside id="sidebar" class="sidebar"></aside>
+    <div class="drawer-back" id="drawer-back"></div>
+    <main class="main">
+      <header class="topbar">
+        <button class="menu-btn" id="menu-btn" title="เมนู" aria-label="เปิดเมนู"></button>
+        <div class="topbar-title">
+          <h1 id="page-title">กำลังโหลด…</h1>
+          <p id="page-desc"></p>
+        </div>
+        <div class="topbar-right">
+          <button id="install-btn" class="btn sm hidden" title="ติดตั้ง Bunny Ledger เป็นแอปบนเครื่องนี้"></button>
+          <a href="#/backup" id="file-pill" class="sync-pill hidden"></a>
+          <a href="#/sync" id="sync-pill" class="sync-pill" title="สถานะการซิงก์ Firebase"></a>
+          <span id="today-label" class="today-label"></span>
+        </div>
+      </header>
+      <section id="view" class="view"></section>
+    </main>
+  </div>
+  <div id="toasts" class="toasts"></div>
+  <div id="modal-root"></div>
+
+  <script src="assets/js/util.js" defer></script>
+  <script src="assets/js/icons.js" defer></script>
+  <script src="assets/js/constants.js" defer></script>
+  <script src="assets/js/db.js" defer></script>
+  <script src="assets/js/filestore.js" defer></script>
+  <script src="assets/js/firebase-config.js" defer></script>
+  <script src="assets/js/pwa.js" defer></script>
+  <script src="assets/js/calc.js" defer></script>
+  <script src="assets/js/summary.js" defer></script>
+  <script src="assets/js/charts.js" defer></script>
+  <script src="assets/js/ui.js" defer></script>
+  <script src="assets/js/demo.js" defer></script>
+  <script src="assets/js/importers/common.js" defer></script>
+  <script src="assets/js/importers/platforms.js" defer></script>
+  <script src="assets/js/connectors/api-stub.js" defer></script>
+  <script src="assets/js/export-excel.js" defer></script>
+  <script src="assets/js/sync-firebase.js" defer></script>
+  <script src="assets/js/pages/dashboard.js" defer></script>
+  <script src="assets/js/pages/history.js" defer></script>
+  <script src="assets/js/pages/import.js" defer></script>
+  <script src="assets/js/pages/shops.js" defer></script>
+  <script src="assets/js/pages/receivables.js" defer></script>
+  <script src="assets/js/pages/tracking.js" defer></script>
+  <script src="assets/js/pages/ledger.js" defer></script>
+  <script src="assets/js/pages/fees.js" defer></script>
+  <script src="assets/js/pages/reports.js" defer></script>
+  <script src="assets/js/pages/sync.js" defer></script>
+  <script src="assets/js/pages/backup.js" defer></script>
+  <script src="assets/js/pages/settings.js" defer></script>
+  <script src="assets/js/app.js" defer></script>
+</body>
+</html>
