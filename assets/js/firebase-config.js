@@ -1,12 +1,12 @@
-/* (ไม่บังคับ) ใส่ Firebase config ของร้านไว้ที่นี่ แล้วทุกเครื่อง/มือถือที่เปิดแอปจะใช้ config นี้อัตโนมัติ
-   ไม่ต้องวางซ้ำทีละเครื่องในหน้า ตั้งค่า → บัญชี & ซิงก์ — เปิดแอปแล้วจะขึ้นหน้าเข้าสู่ระบบเอง
-
-   วิธีใช้: คัดลอกค่าจาก Firebase Console → Project settings → Your apps มาแทน null เช่น
-   window.BUNNY_FIREBASE_CONFIG = {
-     apiKey: "AIza...",
-     authDomain: "ชื่อโปรเจกต์.firebaseapp.com",
-     projectId: "ชื่อโปรเจกต์",
-     appId: "1:...:web:..."
-   };
-   (config นี้ไม่ใช่รหัสลับ ข้อมูลถูกป้องกันด้วยการเข้าสู่ระบบ + firestore.rules) */
-window.BUNNY_FIREBASE_CONFIG = null;
+/* Firebase config ของร้าน — ทุกเครื่อง/มือถือที่เปิดแอปจะใช้ config นี้อัตโนมัติ แล้วขึ้นหน้าเข้าสู่ระบบเอง
+   (config นี้ไม่ใช่รหัสลับ เปิดเผยได้ ข้อมูลถูกป้องกันด้วยการเข้าสู่ระบบ + firestore.rules)
+   เปลี่ยนโปรเจกต์: คัดลอกค่าจาก Firebase Console → Project settings → Your apps → Config มาแทน
+   ปิดการเชื่อม Firebase: เปลี่ยนเป็น window.BUNNY_FIREBASE_CONFIG = null; */
+window.BUNNY_FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDHni7NCxamdowbmIENZI_b2YCnM5xCSUQ',
+  authDomain: 'bunny-ledger.firebaseapp.com',
+  projectId: 'bunny-ledger',
+  storageBucket: 'bunny-ledger.firebasestorage.app',
+  messagingSenderId: '276889763263',
+  appId: '1:276889763263:web:df809533ef7983688a350a',
+};

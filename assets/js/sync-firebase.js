@@ -184,6 +184,8 @@
     'auth/too-many-requests': 'ลองผิดหลายครั้งเกินไป รอสักครู่แล้วลองใหม่',
     'auth/missing-email': 'กรอกอีเมลก่อน',
     'auth/user-disabled': 'บัญชีนี้ถูกปิดใช้งาน',
+    'auth/configuration-not-found': 'ยังไม่ได้เปิด Authentication ใน Firebase Console (Build → Authentication → Get started → เปิด Email/Password)',
+    'failed-precondition': 'ยังไม่ได้สร้างฐานข้อมูล Firestore ใน Firebase Console',
     'auth/api-key-not-valid.-please-pass-a-valid-api-key.': 'apiKey ใน Firebase config ไม่ถูกต้อง',
     'permission-denied': 'Firestore ไม่อนุญาต — ตรวจว่าได้วาง firestore.rules แล้ว',
   };
