@@ -2,7 +2,9 @@
 (function (A) {
   const U = A.U, ui = A.ui;
 
+  // ไม่มีในเมนูแล้ว — เปิดได้จากป้ายสถานะด้านบน (เฉพาะเมื่อตั้งค่า Firebase ไว้) หรือพิมพ์ #/sync
   A.pages.sync = {
+    title: 'ซิงก์ Firebase',
     desc: 'สำรองข้อมูลขึ้นคลาวด์อัตโนมัติ และใช้ข้อมูลชุดเดียวกันได้หลายเครื่อง',
     render(el) {
       const cfg = A.sync.getConfig();

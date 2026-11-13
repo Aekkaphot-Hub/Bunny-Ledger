@@ -39,7 +39,8 @@
       error: ['err', 'ซิงก์มีปัญหา'],
     };
     const [cls, text] = map[status.state] || map.off;
-    el.className = `sync-pill ${cls}`;
+    // ไม่มีเมนูซิงก์แล้ว — แสดงป้ายนี้เฉพาะเมื่อเคยตั้งค่า Firebase ไว้
+    el.className = `sync-pill ${cls} ${status.state === 'off' ? 'hidden' : ''}`;
     el.innerHTML = `<span class="dot"></span>${A.icon('cloud')}<span>${text}</span>`;
     el.title = status.msg || 'สถานะการซิงก์ Firebase';
   }

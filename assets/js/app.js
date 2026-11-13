@@ -45,7 +45,7 @@
     const page = A.pages[id] ? id : 'dashboard';
     current = page;
     const meta = findItem(page);
-    document.getElementById('page-title').textContent = meta ? meta.it.label.replace(/^\d\.\s*/, '') : '';
+    document.getElementById('page-title').textContent = meta ? meta.it.label.replace(/^\d\.\s*/, '') : (A.pages[page].title || '');
     document.getElementById('page-desc').textContent = (A.pages[page] && A.pages[page].desc) || (meta ? meta.it.desc : '');
     document.title = `${meta ? meta.it.label.replace(/^\d\.\s*/, '') : ''} · Bunny Ledger`;
     A.charts.reset();

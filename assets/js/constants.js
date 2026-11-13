@@ -68,7 +68,6 @@
     ] },
     { key: 'docs', title: 'เอกสาร', tone: 'blue', items: [
       { id: 'reports', icon: 'pie', label: 'รายงาน & Excel', desc: 'สรุปเป็นไฟล์ Excel' },
-      { id: 'sync', icon: 'cloud', label: 'ซิงก์ Firebase', desc: 'สำรองขึ้นคลาวด์' },
       { id: 'backup', icon: 'archive', label: 'ไฟล์ข้อมูล & สำรอง', desc: 'บันทึกลงไฟล์บนคอมอัตโนมัติ' },
       { id: 'settings', icon: 'gear', label: 'ตั้งค่า', desc: 'ปรับร้านและการแจ้งเตือน' },
     ] },

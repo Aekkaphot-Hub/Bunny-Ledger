@@ -24,7 +24,7 @@
       <div class="grid g2">
         <div class="card tone-pink">
           <div class="card-head"><h3>${A.icon('archive')} บันทึกลงไฟล์บนคอมอัตโนมัติ</h3>${FS.supported() ? stateBadge : ''}</div>
-          ${!FS.supported() ? `<div class="notice warn">${A.icon('info')}<div>อุปกรณ์/เบราว์เซอร์นี้บันทึกลงไฟล์อัตโนมัติไม่ได้ (รองรับเฉพาะ Edge / Chrome บนคอมพิวเตอร์) — บนมือถือให้ใช้ <a href="#/sync">ซิงก์ Firebase</a> แทน หรือดาวน์โหลดไฟล์สำรองด้านขวา</div></div>`
+          ${!FS.supported() ? `<div class="notice warn">${A.icon('info')}<div>อุปกรณ์/เบราว์เซอร์นี้บันทึกลงไฟล์อัตโนมัติไม่ได้ (รองรับเฉพาะ Edge / Chrome บนคอมพิวเตอร์) — บนมือถือให้ดาวน์โหลดไฟล์สำรองด้านขวาเก็บไว้เป็นระยะ</div></div>`
           : fst.state === 'off' ? `
             <p>ทุกครั้งที่ข้อมูลเปลี่ยน แอปจะบันทึกลงไฟล์ <code>BunnyLedger-data.json</code> ในเครื่องให้เอง (แนะนำเก็บในโฟลเดอร์ Documents หรือโฟลเดอร์ที่ซิงก์กับ OneDrive / Google Drive)</p>
             <ul class="small muted" style="margin:0 0 12px;padding-left:18px">
@@ -59,7 +59,7 @@
           </div>
         </div>
       </div>
-      <div class="notice mt">${A.icon('info')}<div><b>ข้อมูลเก็บไว้ 3 ชั้น:</b> ① ในแอป (ใช้งานได้ทันที แม้ไม่มีเน็ต) ② ไฟล์บนคอม (บันทึกอัตโนมัติ) ③ <a href="#/sync">Firebase</a> (ใช้ข้อมูลชุดเดียวกันได้ทั้งคอมและมือถือ)</div></div>`;
+      <div class="notice mt">${A.icon('info')}<div><b>ข้อมูลเก็บไว้ 2 ชั้น:</b> ① ในแอป (ใช้งานได้ทันที แม้ไม่มีเน็ต) ② ไฟล์บนคอม (บันทึกอัตโนมัติ) — ย้ายข้อมูลไปเครื่องอื่นได้ด้วยไฟล์สำรอง + กู้คืนจากไฟล์</div></div>`;
 
     const $ = (q) => el.querySelector(q);
     const run = (fn, ok) => async () => {
