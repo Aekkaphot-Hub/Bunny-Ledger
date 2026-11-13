@@ -340,6 +340,25 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 
 code { background: var(--cream-2); border-radius: 6px; padding: 1px 6px; font-size: 12.5px; }
 
+/* ===== หน้าจอเข้าสู่ระบบ ===== */
+.auth-back {
+  position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; padding: 16px; overflow-y: auto;
+  background: linear-gradient(140deg, #FDE4EE 0%, var(--cream) 50%, #DCEEFB 100%);
+  animation: fade .2s;
+}
+.auth-card {
+  width: min(400px, 100%); background: var(--card); border-radius: 26px; box-shadow: 0 20px 60px rgba(74,78,105,.16);
+  padding: 26px 26px 18px; text-align: center; border: 1px solid rgba(237,228,214,.7);
+}
+.auth-logo { width: 96px; height: 96px; filter: drop-shadow(0 6px 12px rgba(230,131,166,.25)); }
+.auth-card h2 { font-size: 24px; margin-top: 6px; }
+.auth-form { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.auth-form .input { width: 100%; }
+.auth-err { background: var(--red-soft); color: #A94848; border-radius: 12px; padding: 8px 12px; font-size: 13px; }
+.auth-links { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; }
+.auth-skip { margin-top: 14px; border: none; background: none; color: var(--ink-2); font-size: 12.5px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.auth-skip:hover { color: var(--ink); }
+
 /* ===== responsive ===== */
 @media (max-width: 1100px) {
   .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }

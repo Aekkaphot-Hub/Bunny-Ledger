@@ -13,7 +13,7 @@
 
   let backend = null; // {uid, pull, write, listen}
   let unsubs = [];
-  let status = { state: 'off', at: 0, msg: '', email: '' };
+  let status = { state: 'off', at: 0, msg: '', email: '', authReady: false };
   const statusListeners = [];
   let auth = null;
   let sdkPromise = null;
@@ -141,6 +141,7 @@
     });
   }
   function loadSdk() {
+    if (window.firebase && firebase.auth && firebase.firestore) return Promise.resolve(); // already loaded
     if (!sdkPromise) {
       sdkPromise = (async () => {
         const base = `https://www.gstatic.com/firebasejs/${SDK}/`;
@@ -178,7 +179,11 @@
     'auth/weak-password': 'รหัสผ่านสั้นไป (อย่างน้อย 6 ตัว)',
     'auth/operation-not-allowed': 'ยังไม่ได้เปิด Email/Password ใน Firebase Authentication',
     'auth/network-request-failed': 'เชื่อมต่ออินเทอร์เน็ตไม่ได้',
-    'auth/unauthorized-domain': 'ต้องเพิ่ม localhost ใน Authorized domains ของ Firebase',
+    'auth/unauthorized-domain': `ต้องเพิ่ม ${location.hostname} ใน Firebase → Authentication → Settings → Authorized domains`,
+    'auth/admin-restricted-operation': 'ร้านนี้ปิดการสมัครบัญชีใหม่ไว้ — ให้เจ้าของร้านเป็นผู้สร้างบัญชี',
+    'auth/too-many-requests': 'ลองผิดหลายครั้งเกินไป รอสักครู่แล้วลองใหม่',
+    'auth/missing-email': 'กรอกอีเมลก่อน',
+    'auth/user-disabled': 'บัญชีนี้ถูกปิดใช้งาน',
     'auth/api-key-not-valid.-please-pass-a-valid-api-key.': 'apiKey ใน Firebase config ไม่ถูกต้อง',
     'permission-denied': 'Firestore ไม่อนุญาต — ตรวจว่าได้วาง firestore.rules แล้ว',
   };
@@ -207,28 +212,44 @@
       await A.sync.boot();
     },
     clearConfig() { localStorage.removeItem(CFG_KEY); stop(); location.reload(); },
+    hasConfig: () => !!A.sync.getConfig(),
     async boot() {
       drawPill();
+      if (auth) return; // already started
       const cfg = A.sync.getConfig();
-      if (!cfg) { setStatus({ state: 'off' }); return; }
-      setStatus({ state: 'connecting' });
+      if (!cfg) { setStatus({ state: 'off', authReady: true }); return; }
+      setStatus({ state: 'connecting', authReady: false });
       try {
         await loadSdk();
         if (!firebase.apps.length) firebase.initializeApp(cfg);
         auth = firebase.auth();
         auth.onAuthStateChanged((user) => {
-          if (user) { setStatus({ email: user.email }); startWith(firestoreBackend(user.uid)); }
-          else { stop(); setStatus({ state: 'signedOut', email: '' }); }
+          if (user) { setStatus({ email: user.email, authReady: true }); startWith(firestoreBackend(user.uid)); }
+          else { stop(); setStatus({ state: 'signedOut', email: '', authReady: true }); }
         });
       } catch (e) {
-        setStatus({ state: 'error', msg: thErr(e) });
+        // ออฟไลน์ตอนเปิดแอป / โหลด SDK ไม่ได้ → ใช้งานในเครื่องไปก่อน ไม่บล็อกแอป
+        setStatus({ state: navigator.onLine ? 'error' : 'offline', msg: thErr(e), authReady: true });
       }
     },
-    async signIn(email, pw) { if (!auth) throw new Error('ยังไม่ได้ตั้งค่า Firebase'); try { await auth.signInWithEmailAndPassword(email, pw); } catch (e) { throw new Error(thErr(e)); } },
-    async signUp(email, pw) { if (!auth) throw new Error('ยังไม่ได้ตั้งค่า Firebase'); try { await auth.createUserWithEmailAndPassword(email, pw); } catch (e) { throw new Error(thErr(e)); } },
-    async signOut() { if (auth) await auth.signOut(); },
+    async signIn(email, pw) { if (!auth) throw new Error('ยังเชื่อมต่อ Firebase ไม่ได้ (ตรวจอินเทอร์เน็ต)'); try { await auth.signInWithEmailAndPassword(email, pw); } catch (e) { throw new Error(thErr(e)); } },
+    async signUp(email, pw) { if (!auth) throw new Error('ยังเชื่อมต่อ Firebase ไม่ได้ (ตรวจอินเทอร์เน็ต)'); try { await auth.createUserWithEmailAndPassword(email, pw); } catch (e) { throw new Error(thErr(e)); } },
+    async resetPassword(email) { if (!auth) throw new Error('ยังเชื่อมต่อ Firebase ไม่ได้'); try { auth.languageCode = 'th'; await auth.sendPasswordResetEmail(email); } catch (e) { throw new Error(thErr(e)); } },
+    /* wipe: ล้างข้อมูลในเครื่องนี้ด้วย (ใช้กับเครื่องที่ใช้ร่วมกัน) — ข้อมูลบนคลาวด์ยังอยู่ */
+    async signOut({ wipe = false } = {}) {
+      if (wipe && A.db.pendingCount() > 0) { try { await syncNow(); } catch (e) { /* ignore */ } }
+      if (auth) await auth.signOut();
+      if (wipe) {
+        if (A.filestore && A.filestore.isOn()) A.filestore.pause(true);
+        await A.db.wipeLocal();
+        A.sync.resetCursor();
+      }
+    },
     async syncNow() { try { return await syncNow(); } catch (e) { throw new Error(thErr(e)); } },
-    resetCursor() { if (backend) setCursor({}); },
+    /* ลืมจุดซิงก์ล่าสุดของทุกบัญชีในเครื่องนี้ → เข้าสู่ระบบครั้งหน้าจะดึงข้อมูลทั้งหมดลงมาใหม่ */
+    resetCursor() {
+      Object.keys(localStorage).filter((k) => k.startsWith('bunny.sync.cursor.')).forEach((k) => localStorage.removeItem(k));
+    },
     // ---- for testing with a fake backend ----
     _startWith: startWith,
     _stop: stop,

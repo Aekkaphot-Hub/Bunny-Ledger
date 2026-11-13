@@ -2,7 +2,7 @@
    - ไฟล์ของแอปเอง: ลองโหลดใหม่จากเซิร์ฟเวอร์ก่อน (ได้เวอร์ชันล่าสุด) ถ้าไม่ได้ใช้ของในแคช
    - ไลบรารีจาก CDN (ล็อกเวอร์ชันแล้ว) และฟอนต์: ใช้ของในแคชก่อน
    - ข้อมูลบัญชี / Firestore: ไม่ผ่านแคชนี้เด็ดขาด */
-const VERSION = 'bunny-ledger-v4';
+const VERSION = 'bunny-ledger-v5';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/css/app.css',
@@ -13,7 +13,7 @@ const APP_FILES = [
   'assets/js/export-excel.js', 'assets/js/sync-firebase.js', 'assets/js/pwa.js',
   'assets/js/pages/dashboard.js', 'assets/js/pages/history.js', 'assets/js/pages/import.js', 'assets/js/pages/shops.js',
   'assets/js/pages/receivables.js', 'assets/js/pages/tracking.js', 'assets/js/pages/ledger.js', 'assets/js/pages/fees.js',
-  'assets/js/pages/reports.js', 'assets/js/pages/sync.js', 'assets/js/pages/backup.js', 'assets/js/pages/settings.js',
+  'assets/js/pages/reports.js', 'assets/js/pages/account.js', 'assets/js/auth-gate.js', 'assets/js/pages/backup.js', 'assets/js/pages/settings.js',
   'assets/js/app.js',
 ];
 const LIBS = [

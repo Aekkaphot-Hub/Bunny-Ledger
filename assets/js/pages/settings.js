@@ -3,8 +3,8 @@
   const U = A.U, ui = A.ui;
 
   A.pages.settings = {
-    desc: 'ปรับชื่อร้าน รอบเงินเข้า การแจ้งเตือน และจัดการข้อมูล',
-    render(el) {
+    desc: 'บัญชี & ซิงก์ ชื่อร้าน รอบเงินเข้า การแจ้งเตือน และจัดการข้อมูล',
+    render(el, params) {
       const st = A.settings();
       const pfRow = (label, key, suffix, mult = 1, step = 1) => `<div class="field"><label>${label}</label><div class="row" style="gap:6px;flex-wrap:nowrap">
         ${A.PF_KEYS.map((k) => `<div class="field" style="flex:1"><span class="small muted">${A.PLATFORMS[k].name}</span><input class="input" type="number" step="${step}" min="0" data-pf="${key}.${k}" value="${U.round2(st[key][k] * mult)}" style="width:100%"></div>`).join('')}
@@ -27,6 +27,7 @@
             <div class="row mt"><span class="spacer"></span><button class="btn" id="save">${A.icon('check')} บันทึกการตั้งค่า</button></div>
           </div>
           <div>
+            <div class="card tone-blue" id="account"></div>
             <div class="card">
               <div class="card-head"><h3>${A.icon('sparkle')} ข้อมูลตัวอย่าง</h3></div>
               <p class="muted">ใส่ข้อมูลสมมติ 60 วันย้อนหลังเพื่อทดลองใช้ทุกหน้า แล้วลบออกได้ทีหลังโดยไม่กระทบข้อมูลจริง</p>
@@ -46,6 +47,8 @@
             </div>
           </div>
         </div>`;
+      A.accountCard(el.querySelector('#account'));
+      if (params && params.get('focus') === 'account') setTimeout(() => el.querySelector('#account').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
       el.querySelector('#save').onclick = async () => {
         const num = (id) => parseFloat(el.querySelector('#' + id).value);
         const patch = {
@@ -78,6 +81,7 @@
         if (A.sync) A.sync.resetCursor();
         if (A.filestore && A.filestore.isOn()) A.filestore.pause(true); // ไม่เขียนข้อมูลว่างทับไฟล์บนคอม
         await A.db.wipeLocal();
+        if (A.sync && A.sync.isOn()) A.sync.syncNow().catch(() => {}); // เข้าสู่ระบบอยู่ → ดึงข้อมูลจากคลาวด์กลับมา
         ui.toast('ล้างข้อมูลในเครื่องแล้ว');
         A.go('dashboard');
       };

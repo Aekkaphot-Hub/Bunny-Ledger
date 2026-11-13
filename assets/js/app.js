@@ -94,6 +94,7 @@
     setInterval(updateToday, 60000);
     if (A.pwa) A.pwa.boot();
     if (A.filestore) A.filestore.boot();
+    if (A.authGate) A.authGate.boot();
     if (A.sync) A.sync.boot();
   }
 
