@@ -24,7 +24,8 @@
   };
 
   function draw() {
-    const localCount = A.db.count('orders') + A.db.count('expenses') + A.db.count('otherIncome');
+    // ข้อมูลในเครื่องจะรวมขึ้นบัญชีเฉพาะเมื่อยังไม่เคยผูกกับบัญชีไหน
+    const localCount = A.workspace && A.workspace.isMain() && !U.lsGet('bunny.main.owner', null) ? A.db.count('orders') + A.db.count('expenses') + A.db.count('otherIncome') : 0;
     const titles = { signin: 'เข้าสู่ระบบ', signup: 'สร้างบัญชีร้าน', reset: 'ลืมรหัสผ่าน' };
     el.innerHTML = `
       <div class="auth-card" role="dialog" aria-modal="true" aria-label="${titles[mode]}">
@@ -69,13 +70,14 @@
           mode = 'signin'; draw();
           return;
         }
+        // หลังเข้าสู่ระบบ: เปิดหน้าต่างเลือกร้าน (จำไว้ข้ามการโหลดหน้าใหม่ เช่น เมื่อต้องสลับฐานข้อมูลในเครื่อง)
+        try { sessionStorage.setItem('bunny.openPicker', '1'); } catch (e) { /* ignore */ }
         if (mode === 'signup') await A.sync.signUp(email, pw); else await A.sync.signIn(email, pw);
         U.lsSet(SKIP_KEY, false);
         close();
         A.ui.toast(mode === 'signup' ? 'สร้างบัญชีแล้ว กำลังซิงก์ข้อมูล…' : 'เข้าสู่ระบบแล้ว กำลังซิงก์ข้อมูล…', 'ok');
-        // หลังเข้าสู่ระบบ: เลือกว่าจะเปิดร้านไหน (หรือสร้างร้านใหม่)
-        if (A.workspace) setTimeout(() => A.workspace.openPicker({ afterLogin: true }), 250);
       } catch (ex) {
+        try { sessionStorage.removeItem('bunny.openPicker'); } catch (e) { /* ignore */ }
         showErr(ex.message);
       } finally {
         if (btn.isConnected) btn.disabled = false;

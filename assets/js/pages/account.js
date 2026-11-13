@@ -40,11 +40,11 @@
           ${S.configFromFile() ? '' : '<p class="small mt-s"><a href="#" id="cfg-clear">เปลี่ยน / ลบ Firebase config</a></p>'}`;
         box.querySelector('#login').onclick = () => A.authGate.open('signin');
       } else {
-        const pend = A.db.pendingCount();
+        const pend = S.pending();
         box.innerHTML = `${head}
           <dl class="kv">
             <dt>บัญชี</dt><dd><b>${U.esc(s.email)}</b></dd>
-            <dt>ร้านที่เปิดอยู่</dt><dd><b>${U.esc(A.settings().shopName)}</b> <button class="btn ghost sm" id="shops">${A.icon('swap')} เปลี่ยน / สร้างร้าน</button></dd>
+            <dt>ร้านที่เปิดอยู่</dt><dd><b>${U.esc(A.settings().shopName)}</b>${A.workspace.isShared() ? ` <span class="badge b-blue">${U.esc(A.workspace.roleLabel())}</span>` : ''} <button class="btn ghost sm" id="shops">${A.icon('swap')} เปลี่ยน / สร้างร้าน</button></dd>
             <dt>ซิงก์ล่าสุด</dt><dd>${U.thDateTime(U.lsGet('bunny.sync.lastAt', 0))}</dd>
             <dt>รอส่งขึ้นคลาวด์</dt><dd>${U.num(pend)} รายการ</dd>
             ${s.msg && s.state !== 'ok' ? `<dt>รายละเอียด</dt><dd class="small">${U.esc(s.msg)}</dd>` : ''}

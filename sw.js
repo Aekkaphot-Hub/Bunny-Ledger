@@ -2,7 +2,7 @@
    - ไฟล์ของแอปเอง: ลองโหลดใหม่จากเซิร์ฟเวอร์ก่อน (ได้เวอร์ชันล่าสุด) ถ้าไม่ได้ใช้ของในแคช
    - ไลบรารีจาก CDN (ล็อกเวอร์ชันแล้ว) และฟอนต์: ใช้ของในแคชก่อน
    - ข้อมูลบัญชี / Firestore: ไม่ผ่านแคชนี้เด็ดขาด */
-const VERSION = 'bunny-ledger-v7';
+const VERSION = 'bunny-ledger-v8';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/css/app.css',

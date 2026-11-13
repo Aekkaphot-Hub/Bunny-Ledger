@@ -17,11 +17,11 @@
       <div class="brand">
         <img src="assets/img/bunny-logo.svg" alt="Bunny Ledger">
         <div class="brand-text"><h2>Bunny Ledger</h2>${signedIn
-          ? `<button class="shop-switch" id="shop-switch" title="เปลี่ยนร้าน / สร้างร้านใหม่"><span>${U.esc(st.shopName)}</span>${A.icon('swap')}</button>`
+          ? `<button class="shop-switch" id="shop-switch" title="เปลี่ยนร้าน / สร้างร้านใหม่"><span>${U.esc(st.shopName)}</span>${A.icon('swap')}</button>${A.workspace.isShared() ? `<small>${U.esc(A.workspace.roleLabel())}</small>` : ''}`
           : `<small>${U.esc(st.shopName)}</small>`}</div>
       </div>
       <button class="collapse-btn" id="collapse-btn" title="ย่อ/ขยายเมนู">${A.icon(document.getElementById('app').classList.contains('collapsed') ? 'chevR' : 'chevL')}</button>
-      ${A.MENU.map((g) => `
+      ${A.MENU.map((g) => ({ ...g, items: g.items.filter((it) => !A.workspace || A.workspace.canPage(it.id)) })).filter((g) => g.items.length).map((g) => `
         <div class="nav-group tone-${g.tone}">
           <div class="nav-group-title"><span>${g.title}</span></div>
           ${g.items.map((it) => {
@@ -47,7 +47,8 @@
   function route() {
     const hash = location.hash.replace(/^#\/?/, '') || 'dashboard';
     const [id, q] = hash.split('?');
-    const page = A.pages[id] ? id : 'dashboard';
+    // พนักงานเปิดได้เฉพาะหน้าที่มีสิทธิ์ (ไม่เห็นรายจ่าย รายรับอื่น กำไร)
+    const page = A.pages[id] && (!A.workspace || A.workspace.canPage(id)) ? id : 'dashboard';
     current = page;
     const meta = findItem(page);
     document.getElementById('page-title').textContent = meta ? meta.it.label.replace(/^\d\.\s*/, '') : (A.pages[page].title || '');

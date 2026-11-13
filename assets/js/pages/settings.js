@@ -9,8 +9,13 @@
       const pfRow = (label, key, suffix, mult = 1, step = 1) => `<div class="field"><label>${label}</label><div class="row" style="gap:6px;flex-wrap:nowrap">
         ${A.PF_KEYS.map((k) => `<div class="field" style="flex:1"><span class="small muted">${A.PLATFORMS[k].name}</span><input class="input" type="number" step="${step}" min="0" data-pf="${key}.${k}" value="${U.round2(st[key][k] * mult)}" style="width:100%"></div>`).join('')}
         <span class="small muted" style="align-self:flex-end;padding-bottom:10px">${suffix}</span></div></div>`;
+      const canSet = !A.workspace || A.workspace.can('settings'); // พนักงานแก้การตั้งค่าร้านไม่ได้
+      const canDemo = !A.workspace || A.workspace.can('demo');     // ไม่ใส่ข้อมูลตัวอย่างลงร้านของคนอื่น
       el.innerHTML = `
         <div class="grid g2">
+          ${!canSet ? `<div><div class="card"><div class="card-head"><h3>${A.icon('store')} ${U.esc(st.shopName)}</h3></div>
+            <p class="muted">การตั้งค่าร้าน (รอบเงินเข้า การแจ้งเตือน หมวดหมู่) แก้ได้เฉพาะเจ้าของร้านและผู้จัดการ</p></div>
+            <div class="card" id="team"></div></div>` : `
           <div class="card">
             <div class="card-head"><h3>${A.icon('store')} ร้านของฉัน</h3></div>
             <div class="field"><label>ชื่อร้าน (แสดงบนเมนูและไฟล์ Excel)</label><input class="input" id="shopName" value="${U.esc(st.shopName)}"></div>
@@ -25,21 +30,22 @@
             <div class="mt-s">${pfRow('อัตราที่ถูกหักโดยประมาณ (ใช้เมื่อยังมีเงินเข้าจริงไม่ถึง 10 ออเดอร์)', 'feeRate', '%', 100, 0.1)}</div>
             <p class="small muted">อัตราที่เรียนรู้จากเงินเข้าจริงตอนนี้: ${A.PF_KEYS.map((k) => { const l = A.calc.learnedRates()[k]; return `${A.PLATFORMS[k].name} ${l ? `<b>${U.pct(l.rate)}</b> (${l.n} ออเดอร์)` : '– ยังไม่พอ'}`; }).join(' • ')}</p>
             <div class="row mt"><span class="spacer"></span><button class="btn" id="save">${A.icon('check')} บันทึกการตั้งค่า</button></div>
-          </div>
+          </div>`}
           <div>
             <div class="card tone-blue" id="account"></div>
-            <div class="card">
+            ${canSet ? '<div class="card" id="team"></div>' : ''}
+            ${!canDemo ? '' : `<div class="card">
               <div class="card-head"><h3>${A.icon('sparkle')} ข้อมูลตัวอย่าง</h3></div>
               <p class="muted">ใส่ข้อมูลสมมติ 60 วันย้อนหลังเพื่อทดลองใช้ทุกหน้า แล้วลบออกได้ทีหลังโดยไม่กระทบข้อมูลจริง</p>
               <div class="row"><button class="btn blue" id="demo-add" ${A.demo.has() ? 'disabled' : ''}>${A.icon('sparkle')} ใส่ข้อมูลตัวอย่าง</button>
               <button class="btn ghost" id="demo-del" ${A.demo.has() ? '' : 'disabled'}>${A.icon('trash')} ลบข้อมูลตัวอย่าง</button></div>
-            </div>
-            <div class="card">
+            </div>`}
+            ${!canSet ? '' : `<div class="card">
               <div class="card-head"><h3>${A.icon('tag')} หมวดหมู่</h3></div>
               <div class="field"><label>หมวดรายจ่าย (คั่นด้วยเครื่องหมายจุลภาค ,)</label><textarea class="input" rows="2" id="expCats" style="font-family:inherit">${U.esc(st.expenseCategories.join(', '))}</textarea></div>
               <div class="field mt-s"><label>หมวดรายรับอื่นๆ</label><textarea class="input" rows="2" id="incCats" style="font-family:inherit">${U.esc(st.incomeCategories.join(', '))}</textarea></div>
               <div class="row mt-s"><span class="spacer"></span><button class="btn ghost sm" id="save-cats">บันทึกหมวดหมู่</button></div>
-            </div>
+            </div>`}
             <div class="card">
               <div class="card-head"><h3>${A.icon('alert')} ล้างข้อมูลในเครื่องนี้</h3></div>
               <p class="muted small">ลบข้อมูลทั้งหมดใน <b>แอปบนเครื่องนี้</b> — ไฟล์ข้อมูลบนคอมและข้อมูลบน Firebase ไม่ถูกลบ (ถ้าเปิดซิงก์ไว้จะดึงกลับมาใหม่) ควรสำรองเป็นไฟล์ก่อน</p>
@@ -48,8 +54,10 @@
           </div>
         </div>`;
       A.accountCard(el.querySelector('#account'));
+      if (A.teamCard) A.teamCard(el.querySelector('#team'));
+      const on = (id, fn) => { const b = el.querySelector('#' + id); if (b) b.onclick = fn; };
       if (params && params.get('focus') === 'account') setTimeout(() => el.querySelector('#account').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-      el.querySelector('#save').onclick = async () => {
+      on('save', async () => {
         const num = (id) => parseFloat(el.querySelector('#' + id).value);
         const patch = {
           shopName: el.querySelector('#shopName').value.trim() || 'ร้านของฉัน',
@@ -66,17 +74,17 @@
         if (A.workspace && A.sync.user() && patch.shopName !== st.shopName) A.workspace.saveName().catch(() => {}); // ชื่อในรายชื่อร้าน
         ui.toast('บันทึกการตั้งค่าแล้ว', 'ok');
         A.rerender();
-      };
-      el.querySelector('#save-cats').onclick = async () => {
+      });
+      on('save-cats', async () => {
         const split = (id) => el.querySelector('#' + id).value.split(',').map((s) => s.trim()).filter(Boolean);
         await A.saveSettings({ expenseCategories: split('expCats'), incomeCategories: split('incCats') });
         ui.toast('บันทึกหมวดหมู่แล้ว', 'ok');
-      };
-      el.querySelector('#demo-add').onclick = async () => { const n = await A.demo.load(); ui.toast(`เพิ่มข้อมูลตัวอย่าง ${n} ออเดอร์แล้ว`, 'ok'); A.rerender(); };
-      el.querySelector('#demo-del').onclick = async () => {
+      });
+      on('demo-add', async () => { const n = await A.demo.load(); ui.toast(`เพิ่มข้อมูลตัวอย่าง ${n} ออเดอร์แล้ว`, 'ok'); A.rerender(); });
+      on('demo-del', async () => {
         if (!(await ui.confirm('ลบข้อมูลตัวอย่าง?', 'ลบเฉพาะข้อมูลสมมติ ข้อมูลจริงที่นำเข้าเองจะไม่ถูกลบ', 'ลบ', true))) return;
         const n = await A.demo.remove(); ui.toast(`ลบข้อมูลตัวอย่าง ${n} รายการแล้ว`, 'ok'); A.rerender();
-      };
+      });
       el.querySelector('#wipe').onclick = async () => {
         if (!(await ui.confirm('ล้างข้อมูลทั้งหมดในเครื่องนี้?', 'ข้อมูลออเดอร์ รายจ่าย รายรับ และการตั้งค่าในเครื่องนี้จะหายทั้งหมด กู้คืนได้จากไฟล์สำรองหรือ Firebase เท่านั้น', 'ล้างข้อมูล', true))) return;
         if (A.sync) A.sync.resetCursor();

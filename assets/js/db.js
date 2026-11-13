@@ -43,6 +43,9 @@
     STORES,
     async init(name) {
       if (name) DB_NAME = name;
+      // จำชื่อฐานข้อมูลที่เคยเปิดบนเครื่องนี้ ไว้ล้างทิ้งทั้งหมดตอน "ออกจากระบบ + ล้างข้อมูล"
+      const known = A.U.lsGet('bunny.dbs', []);
+      if (!known.includes(DB_NAME)) A.U.lsSet('bunny.dbs', [...known, DB_NAME]);
       idb = await open();
       for (const s of STORES) {
         cache[s] = new Map();
@@ -50,6 +53,7 @@
       }
     },
     on(fn) { listeners.push(fn); },
+    name: () => DB_NAME,
     all(s) { const out = []; cache[s].forEach((x) => { if (!x.deleted) out.push(x); }); return out; },
     raw(s) { return [...cache[s].values()]; },
     get(s, id) { const x = cache[s].get(id); return x && !x.deleted ? x : null; },

@@ -10,6 +10,10 @@
   const AUTO_KEY = 'bunny.sync.auto';
   const BATCH = 450;
   const STORES = () => A.db.STORES;
+  // พนักงานซิงก์ได้เฉพาะข้อมูลที่มีสิทธิ์ (ตรงกับ firestore.rules)
+  const READ_STORES = () => (A.workspace ? A.workspace.readStores(STORES()) : STORES());
+  const WRITE_STORES = () => (A.workspace ? A.workspace.writeStores(STORES()) : STORES());
+  const pendingCount = () => WRITE_STORES().reduce((n, s) => n + A.db.dirty(s).length, 0);
 
   let backend = null; // {uid, pull, write, listen}
   let unsubs = [];
@@ -44,7 +48,7 @@
     el.innerHTML = `<span class="dot"></span>${A.icon('cloud')}<span>${text}</span>`;
     el.title = status.msg || 'สถานะการซิงก์ Firebase';
   }
-  function safePending() { try { return A.db.pendingCount(); } catch (e) { return 0; } }
+  function safePending() { try { return pendingCount(); } catch (e) { return 0; } }
 
   // ---- cursors (latest updatedAt pulled, per store) ----
   const curKey = () => `bunny.sync.cursor.${backend ? backend.uid : 'x'}${A.workspace ? A.workspace.cursorSuffix() : ''}`;
@@ -68,7 +72,7 @@
   }
   async function push() {
     let n = 0;
-    for (const s of STORES()) {
+    for (const s of WRITE_STORES()) {
       const dirty = A.db.dirty(s);
       if (!dirty.length) continue;
       const docs = dirty.map(clean);
@@ -84,13 +88,13 @@
   async function pull() {
     let n = 0;
     const c = getCursor();
-    for (const s of STORES()) n += await applyRemote(s, await backend.pull(s, c[s] || 0));
+    for (const s of READ_STORES()) n += await applyRemote(s, await backend.pull(s, c[s] || 0));
     return n;
   }
   function listen() {
     unsubs.forEach((u) => u()); unsubs = [];
     const c = getCursor();
-    STORES().forEach((s) => {
+    READ_STORES().forEach((s) => {
       unsubs.push(backend.listen(s, c[s] || 0, (docs) => {
         applyRemote(s, docs).then((n) => { if (n) setStatus({ state: 'ok', at: Date.now() }); }).catch((e) => console.error(e));
       }, (err) => { console.error(err); setStatus({ state: 'error', msg: err.message }); }));
@@ -156,7 +160,7 @@
   /* ร้านแรก: users/{uid}/{store} • ร้านที่สร้างเพิ่ม: users/{uid}/shops/{shopId}/{store} */
   function firestoreBackend(uid, shopId = 'main') {
     const fs = firebase.firestore();
-    const root = shopId === 'main' ? fs.collection('users').doc(uid) : fs.collection('users').doc(uid).collection('shops').doc(shopId);
+    const root = A.workspace ? A.workspace.dataRoot(fs, uid) : shopId === 'main' ? fs.collection('users').doc(uid) : fs.collection('users').doc(uid).collection('shops').doc(shopId);
     const col = (s) => root.collection(s);
     return {
       uid,
@@ -233,6 +237,9 @@
             setStatus({ email: user.email, authReady: true });
             startWith(firestoreBackend(user.uid, A.workspace ? A.workspace.id() : 'main'));
             if (A.workspace) A.workspace.fetchList().then(() => A.renderSidebar && A.renderSidebar()).catch(() => {});
+            let pick = false;
+            try { pick = sessionStorage.getItem('bunny.openPicker') === '1'; sessionStorage.removeItem('bunny.openPicker'); } catch (e) { /* ignore */ }
+            if (pick && A.workspace) setTimeout(() => A.workspace.openPicker({ afterLogin: true }), 300);
           } else { stop(); setStatus({ state: 'signedOut', email: '', authReady: true }); }
         });
       } catch (e) {
@@ -245,18 +252,19 @@
     async resetPassword(email) { if (!auth) throw new Error('ยังเชื่อมต่อ Firebase ไม่ได้'); try { auth.languageCode = 'th'; await auth.sendPasswordResetEmail(email); } catch (e) { throw new Error(thErr(e)); } },
     /* wipe: ล้างข้อมูลในเครื่องนี้ด้วย (ใช้กับเครื่องที่ใช้ร่วมกัน) — ข้อมูลบนคลาวด์ยังอยู่ */
     async signOut({ wipe = false } = {}) {
-      if (wipe && A.db.pendingCount() > 0) { try { await syncNow(); } catch (e) { /* ignore */ } }
+      if (wipe && pendingCount() > 0) { try { await syncNow(); } catch (e) { /* ignore */ } }
       if (auth) await auth.signOut();
       if (wipe) {
         if (A.filestore && A.filestore.isOn()) A.filestore.pause(true);
         await A.db.wipeLocal();
-        if (A.workspace) A.workspace.wipeOtherLocal(); // ร้านอื่นๆ ที่เคยเปิดบนเครื่องนี้ด้วย
+        if (A.workspace) await A.workspace.wipeOtherLocal(); // ร้านอื่นๆ ที่เคยเปิดบนเครื่องนี้ด้วย
         A.sync.resetCursor();
       }
       // ออกจากระบบแล้วกลับไปร้านแรก (ร้านที่สร้างเพิ่มเปิดได้เฉพาะตอนเข้าสู่ระบบ)
       if (A.workspace && A.workspace.resetToMain()) { location.hash = '#/dashboard'; location.reload(); }
     },
     user: () => (auth && auth.currentUser) || null,
+    pending: () => safePending(),
     firestore: () => firebase.firestore(),
     async syncNow() { try { return await syncNow(); } catch (e) { throw new Error(thErr(e)); } },
     /* ลืมจุดซิงก์ล่าสุดของทุกบัญชีในเครื่องนี้ → เข้าสู่ระบบครั้งหน้าจะดึงข้อมูลทั้งหมดลงมาใหม่ */

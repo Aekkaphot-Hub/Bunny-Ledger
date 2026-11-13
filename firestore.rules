@@ -1,24 +1,49 @@
 rules_version = '2';
-// Bunny Ledger: เจ้าของบัญชีอ่าน/เขียนได้เฉพาะข้อมูลของตัวเองเท่านั้น
-//   users/{uid}/{collection}/{docId}                       ← ร้านแรก (ร้านหลัก)
-//   users/{uid}/shops/{shopId}                             ← รายชื่อร้านที่เจ้าของบัญชีสร้าง
-//   users/{uid}/shops/{shopId}/{collection}/{docId}        ← ข้อมูลของร้านที่สร้างเพิ่ม
+// Bunny Ledger — กฎความปลอดภัย (บังคับสิทธิ์ที่ฝั่งเซิร์ฟเวอร์ของ Firebase)
+//   users/{uid}/{collection}/{docId}                 ← ข้อมูลร้านแรกของเจ้าของบัญชี
+//   users/{uid}/shops/{shopId}                       ← รายชื่อร้าน + สมาชิก { members: { "อีเมล": "manager" | "staff" } }
+//   users/{uid}/shops/{shopId}/{collection}/{docId}  ← ข้อมูลร้านที่สร้างเพิ่ม
+//   invites/{อีเมล}/shops/{ownerUid_shopId}            ← คำเชิญ ให้คนที่ได้รับเชิญเห็นร้านในรายการ
+// สิทธิ์: เจ้าของ = ทุกอย่าง • ผู้จัดการ = เห็น/แก้ข้อมูลร้านทุกอย่าง (จัดการทีมไม่ได้)
+//        พนักงาน = ออเดอร์ การนำเข้าไฟล์ ติดตามพัสดุ (ไม่เห็นรายจ่าย รายรับอื่น กำไร แก้การตั้งค่าร้านไม่ได้)
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
-    }
+    function signedIn() { return request.auth != null; }
+    function myEmail() { return request.auth.token.email.lower(); }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
     function isDataCollection(c) {
       return c in ['orders', 'expenses', 'otherIncome', 'imports', 'settings', 'templates'];
     }
+    // บทบาทของผู้ใช้ในร้านของคนอื่น ('' = ไม่ใช่สมาชิก)
+    function roleIn(uid, shopId) {
+      let path = /databases/$(database)/documents/users/$(uid)/shops/$(shopId);
+      return exists(path) ? get(path).data.get('members', {}).get(myEmail(), '') : '';
+    }
+    function memberCan(uid, shopId, c, write) {
+      return signedIn() && request.auth.token.email != null && isDataCollection(c)
+        && (roleIn(uid, shopId) == 'manager'
+          || (roleIn(uid, shopId) == 'staff'
+            && c in (write ? ['orders', 'imports', 'templates', 'otherIncome'] : ['orders', 'imports', 'templates', 'settings'])));
+    }
+
     match /users/{uid}/{collection}/{docId} {
-      allow read, write: if isOwner(uid) && isDataCollection(collection);
+      allow read: if (isOwner(uid) && isDataCollection(collection)) || memberCan(uid, 'main', collection, false);
+      allow write: if (isOwner(uid) && isDataCollection(collection)) || memberCan(uid, 'main', collection, true);
     }
     match /users/{uid}/shops/{shopId} {
-      allow read, write: if isOwner(uid);
+      allow read: if isOwner(uid)
+        || (signedIn() && request.auth.token.email != null && resource.data.get('members', {}).get(myEmail(), '') != '');
+      allow write: if isOwner(uid);
       match /{collection}/{docId} {
-        allow read, write: if isOwner(uid) && isDataCollection(collection);
+        allow read: if (isOwner(uid) && isDataCollection(collection)) || memberCan(uid, shopId, collection, false);
+        allow write: if (isOwner(uid) && isDataCollection(collection)) || memberCan(uid, shopId, collection, true);
       }
+    }
+    match /invites/{email}/shops/{inviteId} {
+      allow read: if signedIn() && request.auth.token.email != null && myEmail() == email;
+      allow read, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create, update: if signedIn() && request.resource.data.ownerUid == request.auth.uid
+        && inviteId.matches(request.auth.uid + '_.+');
     }
     match /{document=**} {
       allow read, write: if false;

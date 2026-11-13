@@ -23,6 +23,7 @@
 
   function draw(el) {
     const st = A.settings();
+    const canSet = !A.workspace || A.workspace.can('settings'); // พนักงานเพิ่ม/ลบชื่อร้านไม่ได้
     const orders = A.db.all('orders');
     const imports = A.db.all('imports');
     el.innerHTML = `
@@ -40,8 +41,8 @@
             </div>
             <div class="mt">
               <div class="small muted" style="margin-bottom:6px">ร้านของฉันบน ${p.name}</div>
-              ${shops.length ? shops.map((s) => `<span class="chip" style="margin:0 6px 6px 0">${U.esc(s.name)} <button data-del-shop="${U.esc(s.id)}" title="ลบ">${A.icon('x')}</button></span>`).join('') : '<p class="small muted">ยังไม่ได้เพิ่ม (ไม่บังคับ — ใช้เมื่อมีหลายร้านบนแพลตฟอร์มเดียว)</p>'}
-              <div class="row mt-s"><input class="input" placeholder="ชื่อร้าน" data-shop-in="${k}" style="flex:1"><button class="btn ghost sm" data-add-shop="${k}">เพิ่ม</button></div>
+              ${shops.length ? shops.map((s) => `<span class="chip" style="margin:0 6px 6px 0">${U.esc(s.name)} ${canSet ? `<button data-del-shop="${U.esc(s.id)}" title="ลบ">${A.icon('x')}</button>` : ''}</span>`).join('') : '<p class="small muted">ยังไม่ได้เพิ่ม (ไม่บังคับ — ใช้เมื่อมีหลายร้านบนแพลตฟอร์มเดียว)</p>'}
+              ${canSet ? `<div class="row mt-s"><input class="input" placeholder="ชื่อร้าน" data-shop-in="${k}" style="flex:1"><button class="btn ghost sm" data-add-shop="${k}">เพิ่ม</button></div>` : ''}
             </div>
             <details class="mt"><summary class="small" style="cursor:pointer">วิธีดาวน์โหลดไฟล์จาก ${p.name}</summary>
               <ol class="steps mt-s"><li><div><b>ไฟล์คำสั่งซื้อ:</b> ${GUIDE[k].orders}</div></li><li><div><b>ไฟล์รายได้:</b> ${GUIDE[k].income}</div></li></ol>
