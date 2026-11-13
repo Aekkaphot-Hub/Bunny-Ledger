@@ -104,20 +104,20 @@
         ${row('สถานะ', ui.status(o.status))}
         ${row('สินค้า', U.esc(o.items || '–') + (o.qty ? ` <span class="muted">× ${o.qty}</span>` : ''))}
         ${row('วันที่สั่งซื้อ', U.thDate(o.orderDate))}
-        ${row('วันที่จัดส่ง', U.thDate(o.shipDate))}
+        ${row('วันที่จัดส่ง', o.shipDate ? U.thDate(o.shipDate) : `– <span class="muted small">${C.saleDate(o) ? `(ไฟล์ไม่มีวันส่ง — นับยอดขายวันที่ ${U.thDate(C.saleDate(o))})` : '(ยังไม่ส่ง — ยังไม่นับเป็นยอดขาย)'}</span>`)}
         ${row('วันที่ลูกค้าได้รับ', U.thDate(o.deliveredDate || o.completedDate))}
         ${row('เลขพัสดุ', o.trackingNo ? `${U.esc(o.trackingNo)} <button class="icon-btn" data-copy="${U.esc(o.trackingNo)}">${A.icon('copy')}</button> <span class="muted small">${U.esc(o.carrier || '')}</span>` : '–')}
         ${row('ยอดขาย (ของร้าน)', U.money(o.grossSales) + (o.buyerPaid != null && o.buyerPaid !== o.grossSales ? ` <span class="muted small">ลูกค้าจ่าย ${U.money(o.buyerPaid)}</span>` : ''))}
         ${o.refundAmount || o.returnNote ? row('คืนเงิน/คืนสินค้า', `${o.refundAmount ? U.money(o.refundAmount) : ''} <span class="muted small">${U.esc(o.returnNote || '')}</span>`) : ''}
         ${row('ค่าธรรมเนียม', U.money(C.fees(o, st)) + (C.feesEstimated(o) ? ' <span class="badge b-butter">ประมาณการ</span>' : ''))}
         ${row('ยอดที่ควรได้', U.money(C.expected(o, st)))}
-        ${row('เงินเข้าจริง', C.isPaid(o) ? `<b>${U.money(o.actualPayout)}</b> <span class="muted small">${U.thDate(o.payoutDate)}${o.manualPaid ? ' (บันทึกเอง)' : ''}</span>` : '<span class="badge b-pink">ยังไม่เข้า</span>')}
+        ${row('เงินเข้าจริง', C.isPaid(o) ? `<b>${U.money(o.actualPayout)}</b> <span class="muted small">${C.payoutParts(o).length > 1 ? C.payoutParts(o).map((p) => `${U.thDate(p.date)} ${U.money(p.amount)}`).join(' • ') : U.thDate(o.payoutDate)}${o.manualPaid ? ' (บันทึกเอง)' : ''}</span>` : '<span class="badge b-pink">ยังไม่เข้า</span>')}
         ${row('ที่มา', U.esc(o.source || '–'))}
       </dl>
       <div class="field mt"><label>โน้ตการติดตาม</label><textarea class="input" rows="2" data-note style="font-family:inherit">${U.esc(o.note || '')}</textarea></div>`;
     const actions = [];
     if (!C.isPaid(o)) actions.push({ label: `${A.icon('wallet')} ได้รับเงินแล้ว`, cls: 'mint', onClick: (close) => { close(); ui.markPaid(o.id); return false; } });
-    else actions.push({ label: `${A.icon('refresh')} ยกเลิกสถานะเงินเข้า`, cls: 'ghost', onClick: async () => { await A.db.put('orders', { ...o, actualPayout: null, payoutDate: null, manualPaid: false }); ui.toast('ย้อนกลับเป็นยังไม่ได้รับเงินแล้ว'); A.rerender(); } });
+    else actions.push({ label: `${A.icon('refresh')} ยกเลิกสถานะเงินเข้า`, cls: 'ghost', onClick: async () => { await A.db.put('orders', { ...o, actualPayout: null, payoutDate: null, payoutParts: null, manualPaid: false }); ui.toast('ย้อนกลับเป็นยังไม่ได้รับเงินแล้ว'); A.rerender(); } });
     if (o.status === 'shipped' || o.status === 'pending_ship') actions.push({ label: `${A.icon('check')} ลูกค้าได้รับแล้ว`, cls: 'blue', onClick: async () => { await A.db.put('orders', { ...o, status: 'delivered', deliveredDate: o.deliveredDate || U.today() }); ui.toast('บันทึกว่าลูกค้าได้รับของแล้ว', 'ok'); A.rerender(); } });
     actions.push({ label: 'บันทึกโน้ต', onClick: async (_c, root) => { await A.db.put('orders', { ...A.db.get('orders', o.id), note: root.querySelector('[data-note]').value.trim() }); ui.toast('บันทึกแล้ว', 'ok'); A.rerender(); } });
     const m = ui.modal({ title: 'รายละเอียดออเดอร์', body, actions, wide: false });

@@ -12,10 +12,13 @@
     const sb = document.getElementById('sidebar');
     const st = A.settings();
     const badges = A.calc.badges();
+    const signedIn = !!(A.workspace && A.sync && A.sync.user());
     sb.innerHTML = `
       <div class="brand">
         <img src="assets/img/bunny-logo.svg" alt="Bunny Ledger">
-        <div class="brand-text"><h2>Bunny Ledger</h2><small>${U.esc(st.shopName)}</small></div>
+        <div class="brand-text"><h2>Bunny Ledger</h2>${signedIn
+          ? `<button class="shop-switch" id="shop-switch" title="เปลี่ยนร้าน / สร้างร้านใหม่"><span>${U.esc(st.shopName)}</span>${A.icon('swap')}</button>`
+          : `<small>${U.esc(st.shopName)}</small>`}</div>
       </div>
       <button class="collapse-btn" id="collapse-btn" title="ย่อ/ขยายเมนู">${A.icon(document.getElementById('app').classList.contains('collapsed') ? 'chevR' : 'chevL')}</button>
       ${A.MENU.map((g) => `
@@ -31,6 +34,8 @@
           }).join('')}
         </div>`).join('')}
     `;
+    const sw = document.getElementById('shop-switch');
+    if (sw) sw.onclick = () => A.workspace.openPicker();
     document.getElementById('collapse-btn').onclick = () => {
       const app = document.getElementById('app');
       app.classList.toggle('collapsed');
@@ -82,7 +87,7 @@
     if (U.lsGet('bunny.collapsed', false)) document.getElementById('app').classList.add('collapsed');
     updateToday();
     try {
-      await A.db.init();
+      await A.db.init(A.workspace ? A.workspace.dbName() : undefined); // ฐานข้อมูลของร้านที่เปิดอยู่
     } catch (e) {
       document.getElementById('view').innerHTML = `<div class="notice red">${A.icon('alert')}<div>เปิดฐานข้อมูลในเครื่องไม่ได้: ${U.esc(e.message)}<br>ลองเปิดด้วย Chrome หรือ Edge ผ่านไฟล์ <b>เปิดโปรแกรม.bat</b></div></div>`;
       return;
@@ -95,7 +100,11 @@
     if (A.pwa) A.pwa.boot();
     if (A.filestore) A.filestore.boot();
     if (A.authGate) A.authGate.boot();
-    if (A.sync) A.sync.boot();
+    if (A.sync) {
+      let lastEmail = null; // เข้า/ออกจากระบบ → แสดง/ซ่อนปุ่มเปลี่ยนร้านบนเมนู
+      A.sync.onStatus((s) => { if ((s.email || '') !== lastEmail) { lastEmail = s.email || ''; A.renderSidebar(); } });
+      A.sync.boot();
+    }
   }
 
   /* ปุ่มเมนูบนมือถือ (เมนูเลื่อนออกจากซ้าย) + ปุ่มติดตั้งแอป */

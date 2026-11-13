@@ -13,7 +13,7 @@
       case 'last3': return [U.addMonths(t, -2), t];
       case 'thisYear': return [t.slice(0, 4) + '-01-01', t];
       case 'all': {
-        const ds = A.db.all('orders').map((o) => o.orderDate).concat(A.db.all('expenses').map((e) => e.date)).filter(Boolean).sort();
+        const ds = A.db.all('orders').map((o) => A.calc.saleDate(o) || o.orderDate).concat(A.db.all('expenses').map((e) => e.date)).filter(Boolean).sort();
         return [ds[0] || t, t];
       }
       default: return [state.from || t, state.to || t];
@@ -22,7 +22,7 @@
   const PRESETS = [['today', 'วันนี้'], ['thisWeek', 'สัปดาห์นี้'], ['thisMonth', 'เดือนนี้'], ['lastMonth', 'เดือนที่แล้ว'], ['last3', '3 เดือนล่าสุด'], ['thisYear', 'ปีนี้'], ['all', 'ทั้งหมด']];
 
   A.pages.reports = {
-    desc: 'เลือกช่วงวันที่ แล้วสรุปออกเป็นไฟล์ Excel พร้อมชีตรายวัน รายสัปดาห์ รายเดือน และกราฟวงกลม',
+    desc: 'เลือกช่วงวันที่ (ยอดขายนับตามวันที่ส่งสินค้า) แล้วสรุปออกเป็นไฟล์ Excel พร้อมชีตรายวัน รายสัปดาห์ รายเดือน และกราฟวงกลม',
     render(el) { draw(el); },
   };
 

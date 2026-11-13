@@ -41,7 +41,8 @@
     };
     A.db.all('orders').forEach((o) => {
       if (!pfOk(f, o.platform) || !shopOk(f, o.shop)) return;
-      add(o.orderDate, (b) => {
+      // ยอดขายนับตามวันที่ส่งสินค้า / ออเดอร์ยกเลิกนับจำนวนตามวันที่สั่ง
+      add(A.isVoid(o.status) ? (A.calc.saleDate(o) || o.orderDate) : A.calc.saleDate(o), (b) => {
         if (A.isVoid(o.status)) {
           b.voided++;
           // ออเดอร์คืนสินค้าที่โดนหักค่าส่งคืน (เงินเข้าติดลบ) นับเป็นค่าใช้จ่าย
@@ -54,7 +55,7 @@
         b.fees += A.calc.fees(o, st);
         if (!A.calc.isPaid(o)) b.pending += A.calc.expected(o, st);
       });
-      if (A.calc.isPaid(o)) add(o.payoutDate, (b) => { b.received += o.actualPayout || 0; b.receivedCount++; });
+      A.calc.payoutParts(o).forEach((p) => add(p.date, (b) => { b.received += p.amount || 0; b.receivedCount++; }));
     });
     A.db.all('expenses').forEach((e) => {
       if (f.platform && e.platform !== f.platform) return;
@@ -77,9 +78,11 @@
   S.items = (from, to, f = {}) => {
     const inR = (d) => d && d >= from && d <= to;
     const orders = A.db.all('orders').filter((o) => pfOk(f, o.platform) && shopOk(f, o.shop));
+    const day = (o) => (A.isVoid(o.status) ? A.calc.saleDate(o) || o.orderDate : A.calc.saleDate(o));
     return {
-      orders: orders.filter((o) => inR(o.orderDate)).sort((a, b) => (b.orderDate || '').localeCompare(a.orderDate || '')),
-      payouts: orders.filter((o) => A.calc.isPaid(o) && inR(o.payoutDate)).sort((a, b) => (b.payoutDate || '').localeCompare(a.payoutDate || '')),
+      // ออเดอร์ของช่วงนี้ = ออเดอร์ที่ "ส่งสินค้า" ในช่วงนี้
+      orders: orders.filter((o) => inR(day(o))).sort((a, b) => (day(b) || '').localeCompare(day(a) || '')),
+      payouts: orders.filter((o) => A.calc.payoutParts(o).some((p) => inR(p.date))).sort((a, b) => (b.payoutDate || '').localeCompare(a.payoutDate || '')),
       expenses: A.db.all('expenses').filter((e) => inR(e.date) && (!f.platform || e.platform === f.platform)).sort((a, b) => b.date.localeCompare(a.date)),
       otherIncome: f.platform ? [] : A.db.all('otherIncome').filter((e) => inR(e.date)).sort((a, b) => b.date.localeCompare(a.date)),
     };

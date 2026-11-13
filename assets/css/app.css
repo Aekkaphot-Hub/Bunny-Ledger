@@ -426,3 +426,21 @@ code { background: var(--cream-2); border-radius: 6px; padding: 1px 6px; font-si
   .toasts { left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); }
   .modal { max-height: 86vh; }
 }
+
+/* ---- หลายร้านต่อบัญชี: ปุ่มเปลี่ยนร้านบนเมนู + หน้าต่างเลือกร้าน ---- */
+.shop-switch {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 170px; margin-top: 2px; padding: 2px 8px 2px 9px;
+  border: 0; border-radius: 999px; background: var(--blue-soft); color: var(--blue-deep); font: inherit; font-size: 12px; cursor: pointer;
+}
+.shop-switch span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-switch svg { width: 14px; height: 14px; flex: none; }
+.shop-switch:hover { background: var(--blue); color: #fff; }
+.shop-list { display: grid; gap: 8px; margin: 12px 0; }
+.shop-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--cream); border: 1.5px solid transparent; }
+.shop-item.current { border-color: var(--blue); background: var(--blue-soft); }
+.shop-ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--card); color: var(--blue-deep); flex: none; }
+.shop-ic svg { width: 18px; height: 18px; }
+.shop-main { flex: 1; min-width: 0; }
+.shop-main b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-main small { color: var(--ink-2); font-size: 12px; }
+.shop-new { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; padding-top: 12px; border-top: 1px dashed var(--line); }

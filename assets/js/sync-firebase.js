@@ -47,7 +47,7 @@
   function safePending() { try { return A.db.pendingCount(); } catch (e) { return 0; } }
 
   // ---- cursors (latest updatedAt pulled, per store) ----
-  const curKey = () => `bunny.sync.cursor.${backend ? backend.uid : 'x'}`;
+  const curKey = () => `bunny.sync.cursor.${backend ? backend.uid : 'x'}${A.workspace ? A.workspace.cursorSuffix() : ''}`;
   const getCursor = () => U.lsGet(curKey(), {});
   const setCursor = (c) => U.lsSet(curKey(), c);
 
@@ -153,9 +153,11 @@
     }
     return sdkPromise;
   }
-  function firestoreBackend(uid) {
+  /* ร้านแรก: users/{uid}/{store} • ร้านที่สร้างเพิ่ม: users/{uid}/shops/{shopId}/{store} */
+  function firestoreBackend(uid, shopId = 'main') {
     const fs = firebase.firestore();
-    const col = (s) => fs.collection('users').doc(uid).collection(s);
+    const root = shopId === 'main' ? fs.collection('users').doc(uid) : fs.collection('users').doc(uid).collection('shops').doc(shopId);
+    const col = (s) => root.collection(s);
     return {
       uid,
       async pull(s, since) { const snap = await col(s).where('updatedAt', '>', since).get(); return snap.docs.map((d) => d.data()); },
@@ -226,8 +228,12 @@
         if (!firebase.apps.length) firebase.initializeApp(cfg);
         auth = firebase.auth();
         auth.onAuthStateChanged((user) => {
-          if (user) { setStatus({ email: user.email, authReady: true }); startWith(firestoreBackend(user.uid)); }
-          else { stop(); setStatus({ state: 'signedOut', email: '', authReady: true }); }
+          if (user) {
+            if (A.workspace && !A.workspace.bindUser(user.uid)) return; // ร้านที่เปิดอยู่เป็นของบัญชีอื่น → โหลดใหม่ที่ร้านแรก
+            setStatus({ email: user.email, authReady: true });
+            startWith(firestoreBackend(user.uid, A.workspace ? A.workspace.id() : 'main'));
+            if (A.workspace) A.workspace.fetchList().then(() => A.renderSidebar && A.renderSidebar()).catch(() => {});
+          } else { stop(); setStatus({ state: 'signedOut', email: '', authReady: true }); }
         });
       } catch (e) {
         // ออฟไลน์ตอนเปิดแอป / โหลด SDK ไม่ได้ → ใช้งานในเครื่องไปก่อน ไม่บล็อกแอป
@@ -244,9 +250,14 @@
       if (wipe) {
         if (A.filestore && A.filestore.isOn()) A.filestore.pause(true);
         await A.db.wipeLocal();
+        if (A.workspace) A.workspace.wipeOtherLocal(); // ร้านอื่นๆ ที่เคยเปิดบนเครื่องนี้ด้วย
         A.sync.resetCursor();
       }
+      // ออกจากระบบแล้วกลับไปร้านแรก (ร้านที่สร้างเพิ่มเปิดได้เฉพาะตอนเข้าสู่ระบบ)
+      if (A.workspace && A.workspace.resetToMain()) { location.hash = '#/dashboard'; location.reload(); }
     },
+    user: () => (auth && auth.currentUser) || null,
+    firestore: () => firebase.firestore(),
     async syncNow() { try { return await syncNow(); } catch (e) { throw new Error(thErr(e)); } },
     /* ลืมจุดซิงก์ล่าสุดของทุกบัญชีในเครื่องนี้ → เข้าสู่ระบบครั้งหน้าจะดึงข้อมูลทั้งหมดลงมาใหม่ */
     resetCursor() {

@@ -44,6 +44,7 @@
         box.innerHTML = `${head}
           <dl class="kv">
             <dt>บัญชี</dt><dd><b>${U.esc(s.email)}</b></dd>
+            <dt>ร้านที่เปิดอยู่</dt><dd><b>${U.esc(A.settings().shopName)}</b> <button class="btn ghost sm" id="shops">${A.icon('swap')} เปลี่ยน / สร้างร้าน</button></dd>
             <dt>ซิงก์ล่าสุด</dt><dd>${U.thDateTime(U.lsGet('bunny.sync.lastAt', 0))}</dd>
             <dt>รอส่งขึ้นคลาวด์</dt><dd>${U.num(pend)} รายการ</dd>
             ${s.msg && s.state !== 'ok' ? `<dt>รายละเอียด</dt><dd class="small">${U.esc(s.msg)}</dd>` : ''}
@@ -59,6 +60,7 @@
           </div>
           ${S.configFromFile() ? '' : '<p class="small mt-s"><a href="#" id="cfg-clear">เปลี่ยน / ลบ Firebase config</a></p>'}`;
         box.querySelector('#auto').onchange = (e) => S.setAuto(e.target.checked);
+        box.querySelector('#shops').onclick = () => A.workspace.openPicker();
         box.querySelector('#now').onclick = async (e) => {
           e.currentTarget.disabled = true;
           try { const r = await S.syncNow(); ui.toast(`ซิงก์เสร็จ: ดึงลง ${r ? r.got : 0} • ส่งขึ้น ${r ? r.sent : 0} รายการ`, 'ok'); }

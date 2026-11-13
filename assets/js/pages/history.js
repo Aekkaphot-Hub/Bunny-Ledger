@@ -4,7 +4,7 @@
   const state = { gran: 'day', anchor: null, pf: '', filter: null, list: 'orders' };
 
   A.pages.history = {
-    desc: 'เลือกดูยอดของวันไหนก็ได้ สรุปเป็นรายวัน รายสัปดาห์ รายเดือน พร้อมกราฟวงกลม',
+    desc: 'ยอดขายนับตามวันที่ส่งสินค้า — สรุปเป็นรายวัน รายสัปดาห์ รายเดือน พร้อมกราฟวงกลม',
     render(el, params) {
       if (params.get('gran')) state.gran = params.get('gran');
       if (params.get('d')) state.anchor = params.get('d');
@@ -149,6 +149,12 @@
   }
 
   /* ---- รายการในช่วงที่เลือก ---- */
+  // วันที่ส่งสินค้า (ไฟล์ที่ไม่มีวันส่ง เช่น Lazada ใช้วันที่ได้รับ/วันที่สั่งแทน แสดงจางพร้อม *)
+  const dayCell = (o) => {
+    const d = A.calc.saleDate(o);
+    if (!d) return '<span class="muted small">ยังไม่ส่ง</span>';
+    return A.calc.saleDateEstimated(o) ? `<span class="muted" title="ไฟล์ไม่มีวันที่ส่ง — ใช้วันที่ได้รับ/วันที่สั่งแทน">${U.thDate(d)}*</span>` : U.thDate(d);
+  };
   function drawDetail(el, per, f) {
     const box = el.querySelector('#detail-card');
     const it = S.items(per.from, per.to, f);
@@ -167,7 +173,7 @@
     let table = '';
     if (state.list === 'orders') {
       table = ui.table([
-        { h: 'วันที่', v: (o) => U.thDate(o.orderDate) }, { h: 'แพลตฟอร์ม', v: (o) => ui.pf(o.platform) }, { h: 'เลขคำสั่งซื้อ', v: (o) => U.esc(o.orderNo) },
+        { h: 'วันที่ส่ง', v: (o) => dayCell(o) }, { h: 'แพลตฟอร์ม', v: (o) => ui.pf(o.platform) }, { h: 'เลขคำสั่งซื้อ', v: (o) => U.esc(o.orderNo) },
         { h: 'สินค้า', cls: 'ell', v: (o) => U.esc(o.items || '–') }, { h: 'สถานะ', v: (o) => ui.status(o.status) },
         { h: 'ยอดขาย', cls: 'num', v: (o) => U.money(o.grossSales) },
         { h: 'เงินเข้า', cls: 'num', v: (o) => (A.calc.isPaid(o) ? U.money(o.actualPayout) : '<span class="badge b-pink">รอ</span>') },
@@ -175,8 +181,8 @@
     } else if (state.list === 'payouts') {
       table = ui.table([
         { h: 'วันที่เงินเข้า', v: (o) => U.thDate(o.payoutDate) }, { h: 'แพลตฟอร์ม', v: (o) => ui.pf(o.platform) }, { h: 'เลขคำสั่งซื้อ', v: (o) => U.esc(o.orderNo) },
-        { h: 'วันที่สั่ง', v: (o) => U.thDate(o.orderDate) }, { h: 'ยอดขาย', cls: 'num', v: (o) => U.money(o.grossSales) }, { h: 'เงินเข้า', cls: 'num', v: (o) => `<b>${U.money(o.actualPayout)}</b>` },
-      ], payouts, { onRow: true, foot: [{ v: 'รวม' }, { v: '' }, { v: '' }, { v: '' }, { cls: 'num', v: '' }, { cls: 'num', v: U.money(U.sum(payouts, (o) => o.actualPayout)) }] });
+        { h: 'วันที่ส่ง', v: (o) => dayCell(o) }, { h: 'ยอดขาย', cls: 'num', v: (o) => U.money(o.grossSales) }, { h: 'เงินเข้า', cls: 'num', v: (o) => `<b>${U.money(A.calc.paidIn(o, per.from, per.to))}</b>` },
+      ], payouts, { onRow: true, foot: [{ v: 'รวม' }, { v: '' }, { v: '' }, { v: '' }, { cls: 'num', v: '' }, { cls: 'num', v: U.money(U.sum(payouts, (o) => A.calc.paidIn(o, per.from, per.to))) }] });
     } else if (state.list === 'expenses') {
       table = ui.table([
         { h: 'วันที่', v: (e) => U.thDate(e.date) }, { h: 'หมวด', v: (e) => `<span class="badge b-pink">${U.esc(e.category || 'อื่นๆ')}</span>` },

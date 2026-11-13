@@ -88,7 +88,8 @@
   /* สร้างไฟล์ใหม่ (แนะนำเก็บใน Documents) */
   fs.createNew = async () => {
     const h = await window.showSaveFilePicker({
-      suggestedName: 'BunnyLedger-data.json', startIn: 'documents',
+      // แต่ละร้านใช้ไฟล์ของตัวเอง
+      suggestedName: A.workspace && !A.workspace.isMain() ? `BunnyLedger-data-${String(A.settings().shopName).replace(/[\\/:*?"<>|\s]+/g, '_')}.json` : 'BunnyLedger-data.json', startIn: 'documents',
       types: [{ description: 'ข้อมูล Bunny Ledger', accept: { 'application/json': ['.json'] } }],
     });
     return use(h, { load: true }); // ถ้าเลือกไฟล์เดิมที่มีข้อมูล จะรวมเข้ามาก่อน ไม่ทับทิ้ง

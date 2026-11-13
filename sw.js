@@ -2,12 +2,12 @@
    - ไฟล์ของแอปเอง: ลองโหลดใหม่จากเซิร์ฟเวอร์ก่อน (ได้เวอร์ชันล่าสุด) ถ้าไม่ได้ใช้ของในแคช
    - ไลบรารีจาก CDN (ล็อกเวอร์ชันแล้ว) และฟอนต์: ใช้ของในแคชก่อน
    - ข้อมูลบัญชี / Firestore: ไม่ผ่านแคชนี้เด็ดขาด */
-const VERSION = 'bunny-ledger-v6';
+const VERSION = 'bunny-ledger-v7';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/css/app.css',
   'assets/img/bunny-logo.svg', 'assets/img/app-icon.svg', 'assets/img/icon-192.png', 'assets/img/icon-512.png', 'assets/img/icon-180.png',
-  'assets/js/util.js', 'assets/js/icons.js', 'assets/js/constants.js', 'assets/js/db.js', 'assets/js/calc.js', 'assets/js/summary.js',
+  'assets/js/util.js', 'assets/js/icons.js', 'assets/js/constants.js', 'assets/js/workspace.js', 'assets/js/db.js', 'assets/js/calc.js', 'assets/js/summary.js',
   'assets/js/charts.js', 'assets/js/ui.js', 'assets/js/demo.js', 'assets/js/firebase-config.js', 'assets/js/filestore.js',
   'assets/js/importers/common.js', 'assets/js/importers/platforms.js', 'assets/js/connectors/api-stub.js',
   'assets/js/export-excel.js', 'assets/js/sync-firebase.js', 'assets/js/pwa.js',

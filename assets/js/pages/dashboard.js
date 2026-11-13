@@ -32,7 +32,7 @@
         ${A.demo.has() ? `<div class="notice pink">${A.icon('sparkle')}<div>ตอนนี้มี <b>ข้อมูลตัวอย่าง</b> อยู่ — ลบได้ที่หน้า <a href="#/settings">ตั้งค่า</a> เมื่อพร้อมใช้ข้อมูลจริง</div></div><div class="mt-s"></div>` : ''}
         ${needBackup ? `<div class="notice warn">${A.icon('alert')}<div>ข้อมูลยังเก็บอยู่ในแอปอย่างเดียว — <a href="#/backup">ตั้งให้บันทึกลงไฟล์บนคอมอัตโนมัติ</a> หรือดาวน์โหลดไฟล์สำรองเก็บไว้ กันข้อมูลหายนะ</div></div><div class="mt-s"></div>` : ''}
         <div class="kpis">
-          ${ui.kpi({ label: 'ยอดขายวันนี้', value: U.money(day.sales), foot: `${U.num(day.orders)} ออเดอร์ • ${ui.delta(day.sales, yday.sales)} จากเมื่อวาน`, icon: 'heart', tone: 'pink', href: '#/history?gran=day' })}
+          ${ui.kpi({ label: 'ยอดขายวันนี้ (ส่งแล้ว)', value: U.money(day.sales), foot: `ส่ง ${U.num(day.orders)} ออเดอร์ • ${ui.delta(day.sales, yday.sales)} จากเมื่อวาน`, icon: 'heart', tone: 'pink', href: '#/history?gran=day' })}
           ${ui.kpi({ label: 'ยอดขายสัปดาห์นี้', value: U.money(week.sales), foot: `${U.num(week.orders)} ออเดอร์ • ${ui.delta(week.sales, lastWeek.sales)}`, icon: 'calendar', tone: 'blue', href: '#/history?gran=week' })}
           ${ui.kpi({ label: 'ยอดขายเดือนนี้', value: U.money(month.sales), foot: `${U.num(month.orders)} ออเดอร์`, icon: 'pie', tone: 'mint', href: '#/history?gran=month' })}
           ${ui.kpi({ label: 'กำไรเบื้องต้นเดือนนี้', value: U.money(month.profit), foot: `หักค่าธรรมเนียม ${U.money0(month.fees)} • รายจ่าย ${U.money0(month.expenses)}`, icon: 'sparkle', tone: 'butter', href: '#/reports' })}

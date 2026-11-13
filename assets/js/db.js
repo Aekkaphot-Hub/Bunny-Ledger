@@ -1,7 +1,7 @@
 /* ฐานข้อมูลในเครื่อง (IndexedDB) + แคชในหน่วยความจำ
    ทุกเรคคอร์ดมี updatedAt, deleted (soft delete), _dirty (รอซิงก์ขึ้นคลาวด์) */
 (function (A) {
-  const DB_NAME = 'bunny-ledger';
+  let DB_NAME = 'bunny-ledger'; // แต่ละร้านมีฐานข้อมูลของตัวเอง (ดู workspace.js)
   const VERSION = 2;
   const STORES = ['orders', 'expenses', 'otherIncome', 'imports', 'settings', 'templates'];
   const META = 'meta'; // ค่าเฉพาะเครื่องนี้ (เช่น ไฟล์ที่เลือกให้บันทึก) — ไม่ซิงก์ ไม่ส่งออก
@@ -41,7 +41,8 @@
 
   const db = {
     STORES,
-    async init() {
+    async init(name) {
+      if (name) DB_NAME = name;
       idb = await open();
       for (const s of STORES) {
         cache[s] = new Map();
@@ -139,8 +140,10 @@
   A.settings = () => {
     const s = db.get('settings', 'main') || {};
     const d = A.DEFAULT_SETTINGS;
+    // ร้านที่เพิ่งเปิดบนเครื่องนี้ (ยังไม่มีการตั้งค่า) ใช้ชื่อจากรายชื่อร้านไปก่อน
+    const name = s.shopName || (A.workspace && A.workspace.cachedName()) || d.shopName;
     return {
-      ...d, ...s,
+      ...d, ...s, shopName: name,
       payoutDays: { ...d.payoutDays, ...(s.payoutDays || {}) },
       feeRate: { ...d.feeRate, ...(s.feeRate || {}) },
       expenseCategories: s.expenseCategories || d.expenseCategories,

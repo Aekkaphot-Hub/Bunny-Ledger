@@ -63,6 +63,7 @@
           if (!isNaN(v)) patch[key][k] = key === 'feeRate' ? v / 100 : v;
         });
         await A.saveSettings(patch);
+        if (A.workspace && A.sync.user() && patch.shopName !== st.shopName) A.workspace.saveName().catch(() => {}); // ชื่อในรายชื่อร้าน
         ui.toast('บันทึกการตั้งค่าแล้ว', 'ok');
         A.rerender();
       };

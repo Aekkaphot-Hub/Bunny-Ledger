@@ -16,7 +16,7 @@
     const months = per.shopee.map((r) => r.from);
     const tot = {};
     A.PF_KEYS.forEach((k) => { tot[k] = S.total(per[k]); });
-    const est = A.db.all('orders').filter((o) => o.orderDate >= from && !A.isVoid(o.status) && A.calc.feesEstimated(o)).length;
+    const est = A.db.all('orders').filter((o) => (A.calc.saleDate(o) || '') >= from && !A.isVoid(o.status) && A.calc.feesEstimated(o)).length;
     const st = A.settings();
     const learned = A.calc.learnedRates();
     const rateText = A.PF_KEYS.map((k) => `${A.PLATFORMS[k].name} ${U.pct(A.calc.rateFor(k, st), 1)}${learned[k] ? ' (จากเงินเข้าจริง)' : ' (จากตั้งค่า)'}`).join(' • ');

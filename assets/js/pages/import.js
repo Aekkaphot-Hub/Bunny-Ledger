@@ -25,6 +25,7 @@
                 <li><div><b>ไฟล์รายได้ / การโอนเงิน</b> — ใช้เช็กว่าเงินเข้าแล้ว ออเดอร์จะหายจาก "ลูกหนี้แพลตฟอร์ม" เอง</div></li>
                 <li><div>ถ้าโปรแกรมเดาคอลัมน์ไม่ถูก กด <b>ปรับคอลัมน์</b> แล้วติ๊ก "จำการจับคู่นี้" ครั้งหน้าจะใช้ได้ทันที</div></li>
               </ol>
+              <p class="small muted mt-s">${A.icon('check')} ยอดขายนับตาม <b>วันที่ส่งสินค้า</b> • ข้อมูลลูกค้า (ชื่อ ที่อยู่ เบอร์โทร อีเมล เลขผู้เสียภาษี ข้อความ) ถูกตัดทิ้งตั้งแต่ตอนอ่านไฟล์ ไม่ถูกเก็บในโปรแกรม</p>
               <p class="small muted mt-s">ดูวิธีดาวน์โหลดไฟล์ของแต่ละแพลตฟอร์มได้ที่หน้า <a href="#/shops">ร้านค้าของฉัน</a></p>
             </div>
             <div class="card">
@@ -84,7 +85,7 @@
       const shops = st.shops.filter((s) => s.platform === it.platform);
       const preview = recs.slice(0, 5);
       const cols = it.report === 'orders'
-        ? [{ h: 'เลขคำสั่งซื้อ', v: (r) => U.esc(r.orderNo) }, { h: 'วันที่', v: (r) => U.thDate(r.orderDate) }, { h: 'สถานะ', v: (r) => ui.status(r.status) + (r.statusRaw ? `<div class="small muted">${U.esc(r.statusRaw)}</div>` : '') },
+        ? [{ h: 'เลขคำสั่งซื้อ', v: (r) => U.esc(r.orderNo) }, { h: 'วันที่ส่ง', v: (r) => (r.shipDate ? U.thDate(r.shipDate) : `<span class="muted small">${r.deliveredDate ? 'ได้รับ ' + U.thDate(r.deliveredDate) : 'ยังไม่ส่ง/ไม่มีในไฟล์'}</span>`) }, { h: 'สถานะ', v: (r) => ui.status(r.status) + (r.statusRaw ? `<div class="small muted">${U.esc(r.statusRaw)}</div>` : '') },
           { h: 'สินค้า', cls: 'ell', v: (r) => U.esc(r.items || '') }, { h: 'ยอดขาย', cls: 'num', v: (r) => U.money(r.grossSales) }, { h: 'เลขพัสดุ', v: (r) => U.esc(r.trackingNo || '–') }]
         : [{ h: 'เลขคำสั่งซื้อ', v: (r) => U.esc(r.orderNo) }, { h: 'วันที่เงินเข้า', v: (r) => U.thDate(r.payoutDate) }, { h: 'ยอดขาย', cls: 'num', v: (r) => U.money(r.grossSales) },
           { h: 'ค่าธรรมเนียม', cls: 'num', v: (r) => U.money(r.platformFees) }, { h: 'เงินเข้า', cls: 'num', v: (r) => U.money(r.actualPayout) }];
@@ -100,6 +101,8 @@
           <span class="spacer"></span>
           <div class="small muted right">${U.num(it.built ? it.built.rowCount : 0)} แถว → <b>${U.num(recs.length)}</b> ออเดอร์${it.built && it.built.skipped ? `<br>ข้าม ${U.num(it.built.skipped)} แถว` : ''}</div>
         </div>
+        ${it.parsed.piiCols && it.parsed.piiCols.length ? `<div class="notice mt-s" title="${U.esc(it.parsed.piiCols.join(', '))}">${A.icon('check')}<div>ตัดข้อมูลลูกค้าทิ้งแล้ว ${it.parsed.piiCols.length} คอลัมน์ (ชื่อ ที่อยู่ เบอร์โทร ฯลฯ) — <b>ไม่ถูกเก็บในโปรแกรม ไม่ขึ้นคลาวด์ ไม่ออกไปกับไฟล์ Excel</b></div></div>` : ''}
+        ${it.built && it.built.adjustments && it.built.adjustments.length ? `<div class="notice mt-s">${A.icon('info')}<div>มีรายการเงินชดเชยจากแพลตฟอร์ม ${it.built.adjustments.length} รายการ (${U.money(U.sum(it.built.adjustments, (a) => a.amount))}) — จะบันทึกเป็น "รายรับอื่นๆ"</div></div>` : ''}
         ${it.fromTpl ? `<div class="notice mt-s">${A.icon('check')}<div>ใช้การจับคู่คอลัมน์ที่จำไว้</div></div>` : ''}
         ${!it.sure && !it.fromTpl ? `<div class="notice warn mt-s">${A.icon('alert')}<div>ไม่แน่ใจว่าเป็นไฟล์ของแพลตฟอร์มไหน — โปรดตรวจช่อง "แพลตฟอร์ม" ก่อนบันทึก</div></div>` : ''}
         ${it.error ? `<div class="notice red mt-s">${A.icon('alert')}<div>${U.esc(it.error)}</div></div>` : ''}
@@ -135,7 +138,7 @@
         try {
           if (it.remember) await I.saveTemplate(it.parsed.headers, it.platform, it.report, it.mapping);
           const r = await I.commit(it.built, { platform: it.platform, report: it.report, filename: it.file.name });
-          ui.toast(`นำเข้าแล้ว: ใหม่ ${U.num(r.created)} • อัปเดต ${U.num(r.updated)} ออเดอร์`, 'ok');
+          ui.toast(`นำเข้าแล้ว: ใหม่ ${U.num(r.created)} • อัปเดต ${U.num(r.updated)} ออเดอร์${r.adjustments ? ` • เงินชดเชย ${r.adjustments} รายการ` : ''}`, 'ok');
           queue = queue.filter((x) => x !== it);
           drawQueue(el); drawHistory(el);
         } catch (e) { console.error(e); ui.toast('บันทึกไม่สำเร็จ: ' + e.message, 'err'); b.disabled = false; }
@@ -147,7 +150,7 @@
     const box = el.querySelector('#map-' + it.id);
     if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
     const fields = I.FIELDS[it.report];
-    const opts = (sel) => `<option value="">— ไม่ใช้ —</option>` + it.parsed.headers.map((h, i) => h ? `<option value="${i}" ${sel === i || (Array.isArray(sel) && sel.includes(i)) ? 'selected' : ''}>${U.esc(h)}</option>` : '').join('');
+    const opts = (sel) => `<option value="">— ไม่ใช้ —</option>` + it.parsed.headers.map((h, i) => h && !I.isPII(h) ? `<option value="${i}" ${sel === i || (Array.isArray(sel) && sel.includes(i)) ? 'selected' : ''}>${U.esc(h)}</option>` : '').join('');
     box.innerHTML = `<div class="card" style="background:var(--cream)">
       <div class="card-head"><h3>จับคู่คอลัมน์ในไฟล์ → ข้อมูลในโปรแกรม</h3><span class="sub">ค่าธรรมเนียมแยกหลายคอลัมน์ เลือกได้หลายช่อง (กด Ctrl ค้าง)</span></div>
       <div class="form-grid">${Object.entries(fields).map(([k, f]) => `<div class="field"><label>${f.label}${f.required ? ' *' : ''}</label>

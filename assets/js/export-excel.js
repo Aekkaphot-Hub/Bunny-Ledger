@@ -165,9 +165,10 @@
 
     if (want.has('orders')) {
       const ws = sheet(wb, 'ออเดอร์-รายรับ', 4);
-      sheetTitle(ws, 'รายการออเดอร์และรายรับ', rangeText + ' (ตามวันที่สั่งซื้อ)');
+      sheetTitle(ws, 'รายการออเดอร์และรายรับ', rangeText + ' (ตามวันที่ส่งสินค้า • * = ไฟล์ไม่มีวันส่ง ใช้วันที่ได้รับ/วันที่สั่งแทน)');
+      const day = (o) => C.saleDate(o) || o.orderDate || '';
       table(ws, 4, [
-        { h: 'วันที่สั่ง', w: 12, t: 'date', v: (o) => o.orderDate },
+        { h: 'วันที่ส่ง', w: 12, t: 'date', v: (o) => day(o) },
         { h: 'แพลตฟอร์ม', w: 10, t: 'text', v: (o) => A.PLATFORMS[o.platform].name },
         { h: 'ร้าน', w: 12, t: 'text', v: (o) => o.shop || '' },
         { h: 'เลขคำสั่งซื้อ', w: 20, t: 'text', v: (o) => o.orderNo },
@@ -179,11 +180,11 @@
         { h: 'ยอดที่ควรได้', t: 'money', v: (o) => (A.isVoid(o.status) ? 0 : U.round2(C.expected(o, st))) },
         { h: 'เงินเข้าจริง', t: 'money', v: (o) => o.actualPayout || 0 },
         { h: 'วันที่เงินเข้า', w: 12, t: 'date', v: (o) => o.payoutDate },
-        { h: 'วันที่ส่ง', w: 12, t: 'date', v: (o) => o.shipDate },
+        { h: 'วันที่สั่ง', w: 12, t: 'date', v: (o) => o.orderDate },
         { h: 'วันที่ได้รับ', w: 12, t: 'date', v: (o) => o.deliveredDate || o.completedDate },
         { h: 'เลขพัสดุ', w: 18, t: 'text', v: (o) => o.trackingNo || '' },
-        { h: 'โน้ต', w: 24, t: 'text', v: (o) => o.note || '' },
-      ], items.orders.slice().sort((a, b) => a.orderDate.localeCompare(b.orderDate)));
+        { h: 'โน้ต', w: 24, t: 'text', v: (o) => [C.saleDateEstimated(o) && C.saleDate(o) ? '* ไม่มีวันส่งในไฟล์' : '', o.note || ''].filter(Boolean).join(' • ') },
+      ], items.orders.slice().sort((a, b) => day(a).localeCompare(day(b))));
       ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: 16 } };
     }
 

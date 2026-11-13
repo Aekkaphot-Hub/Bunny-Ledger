@@ -42,13 +42,28 @@
       feeName: { label: 'ชื่อรายการเงิน', kind: 'first', type: 'text', aliases: ['fee name', 'feename', 'transaction type', 'ชื่อรายการธุรกรรม', 'ชื่อค่าธรรมเนียม'] },
       paidStatus: { label: 'สถานะการจ่าย', kind: 'first', type: 'text', aliases: ['paid status', 'paidstatus', 'สถานะการโอนเงิน', 'สถานะการจ่าย', 'สถานะการชำระ'] },
       grossSales: { label: 'ยอดขาย', kind: 'first', type: 'num', aliases: ['ราคาสินค้า', 'ยอดขายสินค้า', 'ราคาสินค้าเดิม', 'ยอดรวมค่าสินค้าหลังหักส่วนลดจากผู้ขาย', 'subtotal after seller discounts', 'product price', 'original price', 'total revenue', 'รายได้ทั้งหมด'] },
-      refund: { label: 'ยอดคืนเงินให้ลูกค้า', kind: 'first', type: 'num', aliases: ['ยอดรวมเงินคืนหลังหักส่วนลดจากผู้ขาย', 'refund subtotal after seller discounts'] },
+      // Shopee (ไฟล์รายได้): ยอดขาย = สินค้าราคาปกติ − ส่วนลดสินค้าจากผู้ขาย − เงินที่คืนผู้ซื้อ (ตรงกับหน้า Summary ของ Shopee)
+      itemGross: { label: 'ราคาสินค้าก่อนส่วนลดร้าน', kind: 'first', type: 'num', aliases: ['สินค้าราคาปกติ'] },
+      sellerDiscount: { label: 'ส่วนลดสินค้าจากร้าน', kind: 'first', type: 'num', aliases: ['ส่วนลดสินค้าจากผู้ขาย'] },
+      refund: { label: 'ยอดคืนเงินให้ลูกค้า', kind: 'first', type: 'num', aliases: ['ยอดรวมเงินคืนหลังหักส่วนลดจากผู้ขาย', 'refund subtotal after seller discounts', 'จำนวนเงินที่ทำการคืนให้ผู้ซื้อ'] },
       feesTotal: { label: 'ค่าธรรมเนียมรวม', kind: 'first', type: 'num', aliases: ['ค่าธรรมเนียมทั้งหมด', 'total fees', 'total fee'] },
       fees: { label: 'ค่าธรรมเนียม (แยกหลายคอลัมน์)', kind: 'multi', type: 'num', aliases: ['ค่าคอมมิชชั่น', 'ค่าคอมมิชชัน', 'commission fee', 'ค่าธรรมเนียมบริการ', 'ค่าบริการ', 'service fee', 'ค่าธรรมเนียมการชำระเงิน', 'ค่าธรรมเนียมธุรกรรม', 'transaction fee', 'payment fee', 'platform commission fee', 'affiliate commission', 'ค่าคอมมิชชั่นแพลตฟอร์ม'] },
       orderDate: { label: 'วันที่สั่งซื้อ', kind: 'first', type: 'date', aliases: ['วันที่ทำการสั่งซื้อ', 'เวลาที่สร้างคำสั่งซื้อ', 'วันที่สร้างคำสั่งซื้อ', 'order creation date', 'order created time', 'created time', 'เวลาที่สร้าง'] },
       payoutRef: { label: 'เลขอ้างอิงการโอน', kind: 'first', type: 'text', aliases: ['หมายเลขอ้างอิงการโอน', 'รหัสรอบบิล', 'payout id', 'statement', 'statement number', 'settlement id'] },
     },
   };
+
+  /* คอลัมน์ข้อมูลส่วนตัวของลูกค้า (ชื่อ ที่อยู่ เบอร์โทร อีเมล เลขผู้เสียภาษี ข้อความ ฯลฯ)
+     → ถูกล้างทิ้งทันทีหลังอ่านไฟล์ ไม่เข้าโปรแกรม ไม่ถูกบันทึก ไม่ขึ้นคลาวด์ ไม่ออกไปกับไฟล์ Excel
+     เทียบกับชื่อหัวคอลัมน์ที่ตัดช่องว่าง/วงเล็บ/ขีดออกแล้ว (I.norm) */
+  I.PII = [
+    /^customer/, /^shipping(name|address|phone|city|postcode|country|region)/, /^billing/, /nationalregistration/, /^taxcode$/, /^branchnumber$/,
+    /taxinfo/, /taxid/, /buyerfaileddelivery(username|detail)/, /^recipient/, /phone/, /address/, /zipcode/, /postcode/, /^province$/, /^districts?$/,
+    /email/, /buyerusername/, /buyermessage/, /sellernote/, /creatorhandle/, /^username/,
+    /ชื่อผู้รับ/, /ชื่อผู้ใช้ผู้ซื้อ/, /โทรศัพท์/, /เบอร์/, /ที่อยู่/, /รหัสไปรษณีย์/, /^จังหวัด$/, /^เขต/, /^อำเภอ/, /^ตำบล/, /หมายเหตุจากผู้ซื้อ/, /^บันทึก$/,
+    /ชื่อในบัญชี/, /บัญชีธนาคาร/, /ธนาคารของลูกค้า/, /เลขประจำตัวผู้เสียภาษี/, /ชื่อลูกค้า/, /อีเมล/,
+  ];
+  I.isPII = (header) => { const h = I.norm(header); return !!h && I.PII.some((re) => re.test(h)); };
 
   /* ลายเซ็นหัวคอลัมน์ ใช้เดาว่าไฟล์มาจากแพลตฟอร์มไหน */
   I.PLATFORM_HINTS = {

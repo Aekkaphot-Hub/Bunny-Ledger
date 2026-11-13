@@ -38,13 +38,19 @@ while ($listener.IsListening) {
     $rel = [System.Uri]::UnescapeDataString($ctx.Request.Url.AbsolutePath).TrimStart('/')
     if ($rel -eq '') { $rel = 'index.html' }
     $full = [System.IO.Path]::GetFullPath((Join-Path $rootFull $rel))
-    if (-not $full.StartsWith($rootFull, [System.StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath $full -PathType Leaf)) {
+    # Serve only the app itself. Customer files (real Seller Center exports, spreadsheets, data/backup JSON),
+    # scripts and hidden files in this folder are never served.
+    $allowed = ($rel -in @('index.html', 'manifest.webmanifest', 'sw.js')) -or ($rel -match '^assets/[^.][^/]*(/[^./][^/]*)*\.(js|css|svg|png|ico|woff2)$')
+    $blocked = -not $allowed
+    if ($blocked -or -not $full.StartsWith($rootFull, [System.StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath $full -PathType Leaf)) {
       $res.StatusCode = 404
       $bytes = [System.Text.Encoding]::UTF8.GetBytes('Not found')
     } else {
       $ext = [System.IO.Path]::GetExtension($full).ToLower()
       $res.ContentType = if ($mime.ContainsKey($ext)) { $mime[$ext] } else { 'application/octet-stream' }
       $res.Headers.Add('Cache-Control', 'no-cache')
+      $res.Headers.Add('X-Content-Type-Options', 'nosniff')
+      $res.Headers.Add('Referrer-Policy', 'no-referrer')
       $bytes = [System.IO.File]::ReadAllBytes($full)
     }
     $res.ContentLength64 = $bytes.Length

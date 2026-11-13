@@ -73,6 +73,8 @@
         U.lsSet(SKIP_KEY, false);
         close();
         A.ui.toast(mode === 'signup' ? 'สร้างบัญชีแล้ว กำลังซิงก์ข้อมูล…' : 'เข้าสู่ระบบแล้ว กำลังซิงก์ข้อมูล…', 'ok');
+        // หลังเข้าสู่ระบบ: เลือกว่าจะเปิดร้านไหน (หรือสร้างร้านใหม่)
+        if (A.workspace) setTimeout(() => A.workspace.openPicker({ afterLogin: true }), 250);
       } catch (ex) {
         showErr(ex.message);
       } finally {

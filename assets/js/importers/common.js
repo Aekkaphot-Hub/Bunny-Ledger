@@ -37,7 +37,22 @@
       if (h && (!best || h.score > best.score)) best = { ...h, rows, sheet: name };
     });
     if (!best) throw new Error('ไม่พบหัวตารางที่มีเลขคำสั่งซื้อในไฟล์นี้');
+    I.stripPII(best);
     return best;
+  };
+
+  /* ล้างข้อมูลส่วนตัวของลูกค้าทิ้งทันทีหลังอ่านไฟล์ (ชื่อ ที่อยู่ เบอร์โทร อีเมล ฯลฯ — ดู I.PII)
+     เหลือไว้แค่ชื่อหัวคอลัมน์ เพื่อให้รู้ว่าตัดคอลัมน์ไหนทิ้งไป */
+  I.stripPII = (parsed) => {
+    const idx = parsed.headers.map((h, i) => (I.isPII(h) ? i : -1)).filter((i) => i >= 0);
+    for (let r = parsed.headerIdx + 1; r < parsed.rows.length; r++) {
+      const row = parsed.rows[r];
+      idx.forEach((i) => { if (i < row.length) row[i] = ''; });
+    }
+    // แถวก่อนหัวตาราง (หัวรายงาน) อาจมีชื่อ/บัญชีธนาคารเจ้าของร้าน — ไม่ใช้ จึงล้างทิ้งด้วย
+    for (let r = 0; r < parsed.headerIdx; r++) parsed.rows[r] = [];
+    parsed.piiCols = idx.map((i) => parsed.headers[i]);
+    return parsed;
   };
 
   /* ไฟล์จาก TikTok / Lazada บางไฟล์ระบุขอบเขตตาราง (!ref) ผิด เช่น บอกว่ามี 2 แถวแต่จริงมี 470 แถว
@@ -81,7 +96,7 @@
   I.autoMap = (headers, report) => {
     const fields = I.FIELDS[report];
     const nh = headers.map(I.norm);
-    const used = new Set();
+    const used = new Set(headers.map((h, i) => (I.isPII(h) ? i : -1)).filter((i) => i >= 0)); // ห้ามจับคู่คอลัมน์ข้อมูลลูกค้า
     const map = {};
     // pass 1: exact
     Object.entries(fields).forEach(([k, f]) => {
@@ -151,21 +166,37 @@
     const dateOrder = U.detectDateOrder(sample);
 
     const groups = new Map();
+    const adjustments = new Map();
     let skipped = 0;
     const lineBased = report === 'income' && mapping.actualPayout == null && mapping.amount != null;
+    const payCol = lineBased ? mapping.amount : mapping.actualPayout;
+    // ไฟล์รายได้: แยกตาม "ออเดอร์ + วันที่เงินเข้า" เพราะออเดอร์เดียวอาจได้เงินหลายรอบ (เช่น เดือนถัดไปโดนหักคืนเงิน)
+    const dayOf = (r) => (report === 'income' && mapping.payoutDate != null ? U.parseDate(r[mapping.payoutDate], dateOrder) || '' : '');
     data.forEach((r) => {
       const id = cleanId(r[mapping.orderNo]);
       if (!id || /\s/.test(id) || id.length > 40 || !/\d/.test(id)) { skipped++; return; }
       if (report === 'income' && mapping.rowType != null) {
-        const t = String(r[mapping.rowType] || '').toLowerCase();
-        if (t && !/order|คำสั่งซื้อ/.test(t)) { skipped++; return; }
+        const t = String(r[mapping.rowType] || '').trim();
+        if (t && !/order|คำสั่งซื้อ/i.test(t)) {
+          // ไม่ใช่ออเดอร์ เช่น เงินชดเชยจากแพลตฟอร์ม / ชดเชยค่าขนส่ง → เก็บเป็น "รายรับอื่นๆ" ให้ยอดเงินเข้าครบตามแพลตฟอร์ม
+          const amt = payCol != null ? U.parseNumber(r[payCol]) : null;
+          if (amt) {
+            const day = dayOf(r);
+            const k = `${id}|${day}`;
+            const cur = adjustments.get(k) || { ref: id, type: t, date: day, amount: 0 };
+            cur.amount = U.round2(cur.amount + amt);
+            adjustments.set(k, cur);
+          }
+          skipped++; return;
+        }
       }
       if (report === 'income' && mapping.paidStatus != null) {
         const ps = String(r[mapping.paidStatus] || '').toLowerCase();
         if (/not|ยังไม่|unpaid/.test(ps)) { skipped++; return; }
       }
-      if (!groups.has(id)) groups.set(id, []);
-      groups.get(id).push(r);
+      const key = report === 'income' ? `${id}\u0001${dayOf(r)}` : id;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(r);
     });
 
     const conv = (f, v) => {
@@ -173,8 +204,9 @@
       if (f.type === 'date') return U.parseDate(v, dateOrder);
       return v == null ? '' : String(v).trim();
     };
-    const out = [];
-    groups.forEach((rs, orderNo) => {
+    let out = [];
+    groups.forEach((rs, key) => {
+      const orderNo = key.split('\u0001')[0];
       const rec = { platform, orderNo };
       if (shop) rec.shop = shop;
       Object.entries(fields).forEach(([k, f]) => {
@@ -244,21 +276,58 @@
           delete rec.amount;
         }
         delete rec.feeName; delete rec.paidStatus; delete rec.rowType;
-        if (rec.refund) {
-          const r = Math.abs(rec.refund);
-          rec.refundAmount = U.round2(r);
-          if (rec.grossSales && r >= rec.grossSales * 0.99) rec.fullRefund = true;
-          else if (rec.grossSales != null) rec.grossSales = U.round2(Math.max(0, rec.grossSales - r));
-        }
+        // Shopee: ยอดขาย = สินค้าราคาปกติ − ส่วนลดจากร้าน (ส่วนลดที่ Shopee ออกให้ไม่หัก)
+        if (rec.itemGross != null) rec.grossSales = U.round2(rec.itemGross - Math.abs(rec.sellerDiscount || 0));
+        delete rec.itemGross; delete rec.sellerDiscount;
+        const refund = rec.refund ? U.round2(Math.abs(rec.refund)) : 0;
         delete rec.refund;
         if (rec.feesTotal != null) rec.platformFees = Math.abs(rec.feesTotal);
         else if (rec.fees != null) rec.platformFees = rec.fees;
         delete rec.feesTotal; delete rec.fees;
         if (rec.actualPayout == null) return;
+        // เงินเข้า 1 รอบ (ยอดขายเก็บแบบก่อนหักเงินคืน แล้วไปหักตอนรวมทุกรอบ)
+        rec._part = { pay: rec.actualPayout, gross: rec.grossSales != null ? rec.grossSales : null, refund, fees: rec.platformFees != null ? rec.platformFees : null };
+        if (lineBased) rec._part.weak = true; // Lazada: ยอดขายเดาจากรายการเงินบวก ใช้เมื่อไม่มีไฟล์ออเดอร์เท่านั้น
       }
       out.push(rec);
     });
-    return { records: out, skipped, dateOrder, rowCount: data.length };
+    if (report === 'income') out = mergeParts(out);
+    return { records: out, skipped, dateOrder, rowCount: data.length, adjustments: [...adjustments.values()] };
+  };
+
+  /* รวมเงินเข้าหลายรอบของออเดอร์เดียวกัน → { parts: { 'YYYY-MM-DD': {pay, gross, refund, fees} }, ยอดรวม } */
+  function mergeParts(recs) {
+    const by = new Map();
+    recs.forEach((r) => {
+      const part = r._part; delete r._part;
+      let m = by.get(r.orderNo);
+      if (!m) { m = { ...r, parts: {} }; delete m.payoutDate; by.set(r.orderNo, m); }
+      ['orderDate', 'payoutRef', 'shop'].forEach((k) => { if (m[k] == null && r[k] != null) m[k] = r[k]; });
+      m.parts[r.payoutDate || 'x'] = part;
+    });
+    return [...by.values()].map((m) => Object.assign(m, I.partTotals(m.parts)));
+  }
+  I.partTotals = (parts) => {
+    const list = Object.values(parts);
+    const days = Object.keys(parts).filter((d) => /^\d{4}-/.test(d)).sort();
+    const out = { actualPayout: U.round2(U.sum(list, (p) => p.pay || 0)) };
+    if (days.length) out.payoutDate = days[0];
+    const fees = list.filter((p) => p.fees != null);
+    if (fees.length) out.platformFees = U.round2(U.sum(fees, (p) => p.fees));
+    const refund = U.round2(U.sum(list, (p) => p.refund || 0));
+    out.refundAmount = refund || undefined;
+    const withGross = list.filter((p) => p.gross != null);
+    const strong = withGross.filter((p) => !p.weak);
+    const use = strong.length ? strong : withGross;
+    if (use.length) {
+      const g = U.sum(use, (p) => p.gross);
+      if (g > 0 || refund > 0) {
+        out.grossSales = U.round2(Math.max(0, g - refund));
+        out.salesStrong = !!strong.length;
+        out.fullRefund = refund > 0 && g - refund <= Math.max(g * 0.01, 0.5); // คืนเงินเต็มจำนวน
+      }
+    }
+    return out;
   };
 
   /* ---------- save to database (upsert by platform + order number) ---------- */
@@ -280,22 +349,40 @@
         next = { ...base, ...clean, source: filename };
         // อย่าย้อนสถานะที่ผู้ใช้กดเองว่า "ได้รับแล้ว" กลับไปเป็นกำลังส่ง
         if (alive && alive.status === 'delivered' && clean.status === 'shipped') next.status = 'delivered';
+        // ยอดขายจากไฟล์รายได้ (ยอดที่แพลตฟอร์มสรุปจริง) แม่นกว่าไฟล์ออเดอร์ → ไม่เขียนทับ
+        if (alive && alive.salesFromIncome) { next.grossSales = alive.grossSales; if (alive.refundAmount != null) next.refundAmount = alive.refundAmount; }
+        if (alive && alive.returnedByIncome) next.status = 'returned';
         if (!next.status) next.status = 'pending_ship';
         if (!next.orderDate) next.orderDate = today;
       } else {
-        next = { ...base, actualPayout: clean.actualPayout, payoutDate: clean.payoutDate || base.payoutDate || today, manualPaid: false };
-        ['platformFees', 'payoutRef', 'refundAmount'].forEach((k) => { if (clean[k] != null) next[k] = clean[k]; });
-        if (clean.grossSales != null && base.grossSales == null) next.grossSales = clean.grossSales;
+        // เงินเข้าเก็บแยกรอบตามวันที่ → นำเข้าไฟล์หลายเดือนแล้วรวมกันถูก นำเข้าไฟล์เดิมซ้ำก็ไม่นับซ้ำ
+        const legacy = alive && !alive.manualPaid && alive.actualPayout != null && !alive.payoutParts ? { [alive.payoutDate || 'x']: { pay: alive.actualPayout } } : {};
+        const prev = alive && !alive.manualPaid && alive.payoutParts ? alive.payoutParts : legacy;
+        const parts = { ...prev, ...r.parts };
+        const t = I.partTotals(parts);
+        next = { ...base, payoutParts: parts, actualPayout: t.actualPayout, payoutDate: t.payoutDate || base.payoutDate || today, manualPaid: false };
+        if (t.platformFees != null) next.platformFees = t.platformFees;
+        if (clean.payoutRef) next.payoutRef = clean.payoutRef;
+        if (t.refundAmount) next.refundAmount = t.refundAmount;
+        if (t.grossSales != null && t.salesStrong) { next.grossSales = t.grossSales; next.salesFromIncome = true; }
+        else if (t.grossSales != null && base.grossSales == null) next.grossSales = t.grossSales; // Lazada ที่ยังไม่มีไฟล์ออเดอร์
         if (!next.orderDate) next.orderDate = clean.orderDate || next.payoutDate;
         if (!next.status || next.status === 'pending_ship' || next.status === 'shipped') next.status = 'completed';
-        if (r.fullRefund) next.status = 'returned'; // คืนเงินเต็มจำนวน ไม่นับเป็นยอดขาย
+        if (t.fullRefund && (t.salesStrong || base.grossSales == null)) { next.status = 'returned'; next.returnedByIncome = true; } // คืนเงินเต็มจำนวน ไม่นับเป็นยอดขาย
+        else if (base.returnedByIncome) { next.status = 'completed'; next.returnedByIncome = false; }
         if (!next.source) next.source = filename;
       }
       next.deleted = false;
       return next;
     });
     await A.db.putMany('orders', recs);
-    await A.db.put('imports', { at: Date.now(), filename, platform, report, rows: built.rowCount, orders: recs.length, created, updated, skipped: built.skipped });
-    return { created, updated, total: recs.length };
+    // รายการที่ไม่ใช่ออเดอร์ในไฟล์รายได้ (เงินชดเชยจากแพลตฟอร์ม ฯลฯ) → รายรับอื่นๆ
+    const adj = (built.adjustments || []).map((a) => ({
+      id: `adj:${platform}:${a.ref}:${a.date || 'x'}`, date: a.date || today, amount: a.amount, category: 'เงินชดเชยจากแพลตฟอร์ม', platform,
+      note: `${A.PLATFORMS[platform].name} • ${a.type} • ${a.ref}`, source: filename, auto: true, deleted: false,
+    }));
+    if (adj.length) await A.db.putMany('otherIncome', adj);
+    await A.db.put('imports', { at: Date.now(), filename, platform, report, rows: built.rowCount, orders: recs.length, created, updated, skipped: built.skipped, adjustments: adj.length });
+    return { created, updated, total: recs.length, adjustments: adj.length };
   };
 })(window.App);

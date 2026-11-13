@@ -5,6 +5,26 @@
 
   C.isPaid = (o) => o.actualPayout != null;
 
+  /* วันที่นับยอดขาย = "วันที่ส่งสินค้า" (ไม่ใช่วันที่สั่ง)
+     - Shopee: เวลาส่งสินค้า • TikTok: Shipped Time
+     - ไฟล์ที่ไม่มีวันส่ง (เช่น ไฟล์ออเดอร์ Lazada) → วันที่ลูกค้าได้รับ → วันที่คำสั่งซื้อสำเร็จ → วันที่สั่ง
+     - ยังไม่ส่ง → ยังไม่นับเป็นยอดขาย (อยู่ใน ติดตามออเดอร์ → รอจัดส่ง) */
+  C.saleDate = (o) => {
+    if (o.shipDate) return o.shipDate;
+    if (o.status === 'pending_ship') return null;
+    return o.deliveredDate || o.completedDate || o.orderDate || null;
+  };
+  C.saleDateEstimated = (o) => !o.shipDate;
+  /* เงินเข้าแยกตามวัน — ออเดอร์เดียวอาจได้เงินหลายรอบ (เช่น โอนแล้ว เดือนถัดไปโดนหักคืนเงิน) */
+  C.payoutParts = (o) => {
+    if (o.actualPayout == null) return [];
+    if (o.payoutParts && Object.keys(o.payoutParts).length) {
+      return Object.entries(o.payoutParts).map(([date, p]) => ({ date: /^\d{4}-/.test(date) ? date : o.payoutDate, amount: p.pay || 0 }));
+    }
+    return [{ date: o.payoutDate, amount: o.actualPayout }];
+  };
+  C.paidIn = (o, from, to) => U.sum(C.payoutParts(o).filter((p) => p.date && p.date >= from && p.date <= to), (p) => p.amount);
+
   /* อัตราที่ถูกหักจริง (ค่าธรรมเนียม + ค่าส่งที่แพลตฟอร์มหัก) เรียนรู้จากออเดอร์ที่เงินเข้าแล้ว
      ใช้ค่ามัธยฐานของ 300 ออเดอร์ล่าสุดต่อแพลตฟอร์ม ต้องมีอย่างน้อย 10 ออเดอร์ */
   let learnCache = null;
