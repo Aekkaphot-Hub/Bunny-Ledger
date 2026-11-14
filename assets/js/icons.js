@@ -19,6 +19,7 @@
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    percent: '<path d="M18 6 6 18"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>',
     swap: '<path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/>',
     shield: '<path d="M12 3.5 5 6.5v5c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9v-5Z"/><path d="m9 12 2 2 4-4"/>',
     search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',

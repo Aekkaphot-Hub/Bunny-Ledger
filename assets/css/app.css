@@ -444,3 +444,14 @@ code { background: var(--cream-2); border-radius: 6px; padding: 1px 6px; font-si
 .shop-main b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shop-main small { color: var(--ink-2); font-size: 12px; }
 .shop-new { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; padding-top: 12px; border-top: 1px dashed var(--line); }
+
+/* ---- เครื่องมือ: อ้างอิงข้อมูล / VAT ---- */
+.notice.ok { background: var(--mint-soft); color: var(--mint-deep); }
+.meter { height: 14px; border-radius: 999px; background: var(--cream); overflow: hidden; border: 1px solid var(--line); }
+.meter > span { display: block; height: 100%; border-radius: 999px; background: var(--mint); transition: width .4s; }
+.meter.warn > span { background: var(--butter); }
+.meter.over > span { background: var(--pink); }
+.vat-form .input { width: 100%; min-width: 0; }
+.vat-form .check { white-space: normal; align-items: flex-start; line-height: 1.45; }
+.vat-form .check input { margin-top: 3px; flex: none; }
+.grid > * { min-width: 0; }

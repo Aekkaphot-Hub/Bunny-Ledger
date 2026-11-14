@@ -48,6 +48,8 @@
     expenseCategories: ['ต้นทุนสินค้า', 'ค่าแพ็กของ', 'ค่าโฆษณา', 'ค่าขนส่ง', 'ค่าเช่า/ค่าน้ำไฟ', 'ค่าจ้าง', 'อื่นๆ'],
     incomeCategories: ['ขายหน้าร้าน', 'โอนตรง', 'ดอกเบี้ย/อื่นๆ'],
     shops: [],
+    // ภาษีมูลค่าเพิ่ม: ต้องจด VAT ภายใน 30 วันเมื่อรายรับเกิน 1.8 ล้านบาท/ปี • อัตรา 7% (ขยายถึง 30 ก.ย. 2570)
+    vat: { registered: false, since: '', rate: 0.07, threshold: 1800000, priceIncludesVat: true, countOtherIncome: true, feesHaveInvoice: true, efiling: true },
   };
 
   A.MENU = [
@@ -65,6 +67,10 @@
     { key: 'expense', title: 'รายจ่าย', tone: 'pink', items: [
       { id: 'expenses', icon: 'receipt', label: 'บันทึกรายจ่าย', desc: 'ค่าของ ค่าแพ็ก ค่าแอด' },
       { id: 'fees', icon: 'tag', label: 'ค่าธรรมเนียมแพลตฟอร์ม', desc: 'ค่าคอมที่ถูกหัก' },
+    ] },
+    { key: 'tools', title: 'เครื่องมือ', tone: 'mint', items: [
+      { id: 'verify', icon: 'search', label: 'อ้างอิงข้อมูล', desc: 'เทียบยอดกับไฟล์จริง' },
+      { id: 'vat', icon: 'percent', label: 'คำนวณภาษี VAT', desc: 'เกณฑ์ 1.8 ล้าน & ภาษีรายเดือน' },
     ] },
     { key: 'docs', title: 'เอกสาร', tone: 'blue', items: [
       { id: 'reports', icon: 'pie', label: 'รายงาน & Excel', desc: 'สรุปเป็นไฟล์ Excel' },

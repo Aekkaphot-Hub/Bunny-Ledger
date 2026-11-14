@@ -35,6 +35,7 @@
                   <input class="input" name="category" list="cat-list" required value="${U.esc(e ? e.category : cats[0])}">
                   <datalist id="cat-list">${cats.map((c) => `<option value="${U.esc(c)}">`).join('')}</datalist></div>
                 ${withPlatform ? `<div class="field" style="grid-column:1/-1"><label>เกี่ยวกับแพลตฟอร์ม (ถ้ามี)</label>${ui.pfSelect(e ? e.platform : '', '— ไม่เกี่ยว / ใช้ร่วมกัน —', 'name="platform"')}</div>` : ''}
+                ${store === 'expenses' ? `<label class="check" style="grid-column:1/-1"><input type="checkbox" name="taxInvoice" ${e && e.taxInvoice ? 'checked' : ''}> มีใบกำกับภาษีเต็มรูป (ใช้เป็นภาษีซื้อ หลังจด VAT)</label>` : ''}
                 <div class="field" style="grid-column:1/-1"><label>รายละเอียด</label><input class="input" name="note" value="${U.esc(e ? e.note || '' : '')}" placeholder="เช่น ซื้อกล่อง 100 ใบ"></div>
                 <div class="row" style="grid-column:1/-1">
                   <button class="btn" type="submit">${A.icon('check')} ${e ? 'บันทึกการแก้ไข' : 'บันทึก'}</button>
@@ -65,7 +66,7 @@
               { h: 'วันที่', v: (x) => U.thDate(x.date) },
               { h: 'หมวด', v: (x) => `<span class="badge b-${tone}">${U.esc(x.category || 'อื่นๆ')}</span>` },
               ...(withPlatform ? [{ h: 'แพลตฟอร์ม', v: (x) => (x.platform ? ui.pf(x.platform) : '<span class="muted">–</span>') }] : []),
-              { h: 'รายละเอียด', cls: 'ell', v: (x) => U.esc(x.note || '') },
+              { h: 'รายละเอียด', cls: 'ell', v: (x) => U.esc(x.note || '') + (x.taxInvoice ? ' <span class="badge b-green">ใบกำกับภาษี</span>' : '') },
               { h: 'จำนวนเงิน', cls: 'num', v: (x) => `<b>${U.money(x.amount)}</b>` },
               { h: '', v: (x) => `<span class="nowrap"><button class="icon-btn" data-edit="${x.id}" title="แก้ไข">${A.icon('edit')}</button><button class="icon-btn" data-del="${x.id}" title="ลบ">${A.icon('trash')}</button></span>` },
             ], shown, { empty: `ยังไม่มี${title}ในเดือนนี้`, foot: [{ v: 'รวม' }, { v: `${shown.length} รายการ` }, ...(withPlatform ? [{ v: '' }] : []), { v: '' }, { cls: 'num', v: U.money(U.sum(shown, (x) => x.amount)) }, { v: '' }] })}
@@ -81,6 +82,7 @@
           note: String(fd.get('note') || '').trim(),
         };
         if (withPlatform) rec.platform = fd.get('platform') || '';
+        if (store === 'expenses') rec.taxInvoice = !!fd.get('taxInvoice');
         if (isNaN(rec.amount) || rec.amount <= 0) { ui.toast('กรอกจำนวนเงินให้ถูกต้องนะ', 'err'); return; }
         await A.db.put(store, rec);
         if (!cats.includes(rec.category)) await A.saveSettings({ [catKey]: [...cats, rec.category] });

@@ -274,4 +274,23 @@
     A.ui.toast('ดาวน์โหลดไฟล์ Excel แล้ว', 'ok');
     return buf;
   };
+
+  /* ส่งออกตารางทั่วไป (ใช้ในหน้าเครื่องมือ)
+     sheets = [{ name, title, sub, tables: [{ title, cols, rows, fill: 'pink'|'blue', totals }] }] */
+  A.exportSheets = async (filename, sheets) => {
+    if (!window.ExcelJS) { A.ui.toast('ยังโหลดตัวสร้าง Excel ไม่เสร็จ (ต้องต่ออินเทอร์เน็ตครั้งแรก)', 'err'); return null; }
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Bunny Ledger';
+    wb.created = new Date();
+    sheets.forEach((s) => {
+      const ws = sheet(wb, String(s.name).replace(/[\\/?*[\]:]/g, '').slice(0, 31), 4);
+      sheetTitle(ws, s.title, s.sub || '');
+      let r = 4;
+      s.tables.forEach((t) => { const res = table(ws, r, t.cols, t.rows, { fill: t.fill === 'blue' ? BLUE : PINK, totals: t.totals !== false, title: t.title }); r = res.lastRow + 3; });
+    });
+    const buf = await wb.xlsx.writeBuffer();
+    U.download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), String(filename).replace(/[\\/:*?"<>|]/g, '_'));
+    A.ui.toast('ดาวน์โหลดไฟล์ Excel แล้ว', 'ok');
+    return buf;
+  };
 })(window.App);

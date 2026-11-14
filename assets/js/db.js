@@ -150,6 +150,7 @@
       ...d, ...s, shopName: name,
       payoutDays: { ...d.payoutDays, ...(s.payoutDays || {}) },
       feeRate: { ...d.feeRate, ...(s.feeRate || {}) },
+      vat: { ...d.vat, ...(s.vat || {}) },
       expenseCategories: s.expenseCategories || d.expenseCategories,
       incomeCategories: s.incomeCategories || d.incomeCategories,
       shops: s.shops || [],

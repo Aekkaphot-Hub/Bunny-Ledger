@@ -78,6 +78,8 @@
     const box = el.querySelector('#queue');
     if (!box) return;
     const st = A.settings();
+    // "26 ออเดอร์ (28 รายการสินค้า)" — Lazada นับสินค้าแต่ละชิ้นในออเดอร์เป็นคนละรายการ
+    const itemsNote = (items, orders) => (items && items !== orders ? ` (${U.num(items)} รายการสินค้า)` : '');
     box.innerHTML = queue.map((it) => {
       if (!it.parsed && !it.error) return `<div class="card"><b>${U.esc(it.file.name)}</b> <span class="muted">กำลังอ่าน…</span></div>`;
       if (!it.parsed) return `<div class="card"><div class="row"><b>${U.esc(it.file.name)}</b><span class="spacer"></span><button class="icon-btn" data-drop="${it.id}">${A.icon('x')}</button></div><div class="notice red mt-s">${A.icon('alert')}<div>${U.esc(it.error)}</div></div></div>`;
@@ -99,7 +101,7 @@
           <div class="field"><label>ชนิดไฟล์</label><select class="input" data-f="report"><option value="orders" ${it.report === 'orders' ? 'selected' : ''}>คำสั่งซื้อ (ออเดอร์)</option><option value="income" ${it.report === 'income' ? 'selected' : ''}>รายได้ / การโอนเงิน</option></select></div>
           <div class="field"><label>ร้าน</label><select class="input" data-f="shop"><option value="">— ไม่ระบุ —</option>${shops.map((s) => `<option ${it.shop === s.name ? 'selected' : ''}>${U.esc(s.name)}</option>`).join('')}</select></div>
           <span class="spacer"></span>
-          <div class="small muted right">${U.num(it.built ? it.built.rowCount : 0)} แถว → <b>${U.num(recs.length)}</b> ออเดอร์${it.built && it.built.skipped ? `<br>ข้าม ${U.num(it.built.skipped)} แถว` : ''}</div>
+          <div class="small muted right">${U.num(it.built ? it.built.rowCount : 0)} แถว → <b>${U.num(recs.length)}</b> ออเดอร์<b>${itemsNote(it.built && it.built.itemCount, recs.length)}</b>${it.built && it.built.skipped ? `<br>ข้าม ${U.num(it.built.skipped)} แถว` : ''}</div>
         </div>
         ${it.parsed.piiCols && it.parsed.piiCols.length ? `<div class="notice mt-s" title="${U.esc(it.parsed.piiCols.join(', '))}">${A.icon('check')}<div>ตัดข้อมูลลูกค้าทิ้งแล้ว ${it.parsed.piiCols.length} คอลัมน์ (ชื่อ ที่อยู่ เบอร์โทร ฯลฯ) — <b>ไม่ถูกเก็บในโปรแกรม ไม่ขึ้นคลาวด์ ไม่ออกไปกับไฟล์ Excel</b></div></div>` : ''}
         ${it.built && it.built.adjustments && it.built.adjustments.length ? `<div class="notice mt-s">${A.icon('info')}<div>มีรายการเงินชดเชยจากแพลตฟอร์ม ${it.built.adjustments.length} รายการ (${U.money(U.sum(it.built.adjustments, (a) => a.amount))}) — จะบันทึกเป็น "รายรับอื่นๆ"</div></div>` : ''}
@@ -111,7 +113,7 @@
         <div class="row mt-s">
           <button class="btn ghost sm" data-map="${it.id}">${A.icon('edit')} ปรับคอลัมน์</button>
           <span class="spacer"></span>
-          <button class="btn" data-save="${it.id}" ${!recs.length || it.error ? 'disabled' : ''}>${A.icon('check')} บันทึก ${U.num(recs.length)} ออเดอร์</button>
+          <button class="btn" data-save="${it.id}" ${!recs.length || it.error ? 'disabled' : ''}>${A.icon('check')} บันทึก ${U.num(recs.length)} ออเดอร์${itemsNote(it.built && it.built.itemCount, recs.length)}</button>
         </div>
       </div>`;
     }).join('');
@@ -138,7 +140,7 @@
         try {
           if (it.remember) await I.saveTemplate(it.parsed.headers, it.platform, it.report, it.mapping);
           const r = await I.commit(it.built, { platform: it.platform, report: it.report, filename: it.file.name });
-          ui.toast(`นำเข้าแล้ว: ใหม่ ${U.num(r.created)} • อัปเดต ${U.num(r.updated)} ออเดอร์${r.adjustments ? ` • เงินชดเชย ${r.adjustments} รายการ` : ''}`, 'ok');
+          ui.toast(`นำเข้าแล้ว: ใหม่ ${U.num(r.created)} • อัปเดต ${U.num(r.updated)} ออเดอร์${r.items && r.items !== r.total ? ` (${U.num(r.items)} รายการสินค้า)` : ''}${r.adjustments ? ` • เงินชดเชย ${r.adjustments} รายการ` : ''}`, 'ok');
           queue = queue.filter((x) => x !== it);
           drawQueue(el); drawHistory(el);
         } catch (e) { console.error(e); ui.toast('บันทึกไม่สำเร็จ: ' + e.message, 'err'); b.disabled = false; }
@@ -179,7 +181,7 @@
     const rows = A.db.all('imports').sort((a, b) => b.at - a.at).slice(0, 15);
     box.innerHTML = rows.length ? `<div class="todo-list">${rows.map((r) => `<div class="todo tone-${r.report === 'income' ? 'mint' : 'blue'}" style="cursor:default">
       <span class="t-ic">${A.icon(r.report === 'income' ? 'wallet' : 'parcel')}</span>
-      <div class="t-main"><b title="${U.esc(r.filename)}">${U.esc(r.filename)}</b><small>${A.PLATFORMS[r.platform] ? A.PLATFORMS[r.platform].name : ''} • ${r.report === 'income' ? 'รายได้' : 'คำสั่งซื้อ'} • ใหม่ ${r.created} / อัปเดต ${r.updated} • ${U.thDateTime(r.at)}</small></div>
+      <div class="t-main"><b title="${U.esc(r.filename)}">${U.esc(r.filename)}</b><small>${A.PLATFORMS[r.platform] ? A.PLATFORMS[r.platform].name : ''} • ${r.report === 'income' ? 'รายได้' : 'คำสั่งซื้อ'} • ${r.orders != null ? `${r.orders} ออเดอร์${r.items && r.items !== r.orders ? ` (${r.items} รายการสินค้า)` : ''} • ` : ''}ใหม่ ${r.created} / อัปเดต ${r.updated} • ${U.thDateTime(r.at)}</small></div>
     </div>`).join('')}</div>` : '<p class="muted small">ยังไม่เคยนำเข้าไฟล์</p>';
   }
 })(window.App);

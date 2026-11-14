@@ -5,7 +5,7 @@
   const I = {};
   A.importers = I;
 
-  const NO_FUZZY = new Set(['qty', 'status', 'sku', 'amount', 'rowType', 'substatus', 'carrier', 'itemRefund', 'sellerDiscount', 'itemGross']);
+  const NO_FUZZY = new Set(['orderItem', 'qty', 'status', 'sku', 'amount', 'rowType', 'substatus', 'carrier', 'itemRefund', 'sellerDiscount', 'itemGross']);
   I.norm = (s) => String(s == null ? '' : s).toLowerCase().replace(/[\s\*\(\)\[\]\.:_\-\/฿,"'#]/g, '');
 
   /* ---------- reading ---------- */
@@ -38,7 +38,33 @@
     });
     if (!best) throw new Error('ไม่พบหัวตารางที่มีเลขคำสั่งซื้อในไฟล์นี้');
     I.stripPII(best);
+    best.summary = I.platformSummary(wb, best.sheet);
     return best;
+  };
+
+  /* ยอดสรุปที่แพลตฟอร์มคำนวณเอง (Shopee: ชีต Summary • TikTok: ชีต รายงาน) — ใช้ในหน้า "อ้างอิงข้อมูล"
+     อ่านเฉพาะบรรทัดยอดเงินตามชื่อด้านล่าง ไม่เก็บชื่อ/บัญชีธนาคารที่อยู่ในชีตสรุป */
+  const SUMMARY_LABELS = {
+    payout: ['จำนวนเงินทั้งหมดที่โอนแล้ว', 'ยอดการชำระเงินทั้งหมด', 'total released amount', 'total settlement amount'],
+    sales: ['รายได้ทั้งหมด', 'total revenue'],
+    fees: ['ค่าใช้จ่ายทั้งหมด', 'ค่าธรรมเนียมทั้งหมด', 'total fees'],
+  };
+  I.platformSummary = (wb, skipSheet) => {
+    const want = {};
+    Object.entries(SUMMARY_LABELS).forEach(([k, ls]) => ls.forEach((l) => { want[I.norm(l)] = k; }));
+    const out = {};
+    wb.SheetNames.filter((n) => n !== skipSheet).forEach((name) => {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '', blankrows: false }).slice(0, 120);
+      rows.forEach((r) => {
+        const label = r.find((c) => typeof c === 'string' && c.trim());
+        if (!label) return;
+        const k = want[I.norm(label).replace(/^\d+/, '')];
+        if (!k || out[k] != null) return;
+        const v = r.slice(r.indexOf(label) + 1).map((c) => U.parseNumber(c)).find((x) => x != null);
+        if (v != null) out[k] = { value: U.round2(Math.abs(v)), label: String(label).trim(), sheet: name };
+      });
+    });
+    return Object.keys(out).length ? out : null;
   };
 
   /* ล้างข้อมูลส่วนตัวของลูกค้าทิ้งทันทีหลังอ่านไฟล์ (ชื่อ ที่อยู่ เบอร์โทร อีเมล ฯลฯ — ดู I.PII)
@@ -168,6 +194,7 @@
     const groups = new Map();
     const adjustments = new Map();
     let skipped = 0;
+    const itemsOf = new Map(); // เลขออเดอร์ → รหัสรายการสินค้า
     const lineBased = report === 'income' && mapping.actualPayout == null && mapping.amount != null;
     const payCol = lineBased ? mapping.amount : mapping.actualPayout;
     // ไฟล์รายได้: แยกตาม "ออเดอร์ + วันที่เงินเข้า" เพราะออเดอร์เดียวอาจได้เงินหลายรอบ (เช่น เดือนถัดไปโดนหักคืนเงิน)
@@ -194,6 +221,10 @@
         const ps = String(r[mapping.paidStatus] || '').toLowerCase();
         if (/not|ยังไม่|unpaid/.test(ps)) { skipped++; return; }
       }
+      // นับรายการสินค้าต่อออเดอร์ (Lazada แยกแต่ละสินค้าเป็นคนละรายการ เช่น 26 ออเดอร์ = 28 รายการสินค้า)
+      if (!itemsOf.has(id)) itemsOf.set(id, new Set());
+      const its = itemsOf.get(id);
+      its.add(mapping.orderItem != null && String(r[mapping.orderItem] || '').trim() ? String(r[mapping.orderItem]).trim() : `row${its.size}`);
       const key = report === 'income' ? `${id}\u0001${dayOf(r)}` : id;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(r);
@@ -211,7 +242,7 @@
       if (shop) rec.shop = shop;
       Object.entries(fields).forEach(([k, f]) => {
         const col = mapping[k];
-        if (col == null || k === 'orderNo') return;
+        if (col == null || k === 'orderNo' || f.kind === 'items') return;
         if (f.kind === 'multi') {
           let total = null;
           col.forEach((c) => {
@@ -292,7 +323,15 @@
       out.push(rec);
     });
     if (report === 'income') out = mergeParts(out);
-    return { records: out, skipped, dateOrder, rowCount: data.length, adjustments: [...adjustments.values()] };
+    // จำนวนรายการสินค้า: ไฟล์ออเดอร์ = แถวของออเดอร์นั้น, ไฟล์รายได้ = เฉพาะเมื่อไฟล์มีรหัสรายการสินค้า (Lazada)
+    const countItems = report === 'orders' || mapping.orderItem != null;
+    let itemCount = 0;
+    out.forEach((r) => {
+      const n = itemsOf.has(r.orderNo) ? itemsOf.get(r.orderNo).size : 1;
+      if (countItems) r.itemLines = n;
+      itemCount += n;
+    });
+    return { records: out, skipped, dateOrder, rowCount: data.length, itemCount: countItems ? itemCount : null, adjustments: [...adjustments.values()] };
   };
 
   /* รวมเงินเข้าหลายรอบของออเดอร์เดียวกัน → { parts: { 'YYYY-MM-DD': {pay, gross, refund, fees} }, ยอดรวม } */
@@ -363,6 +402,9 @@
         next = { ...base, payoutParts: parts, actualPayout: t.actualPayout, payoutDate: t.payoutDate || base.payoutDate || today, manualPaid: false };
         if (t.platformFees != null) next.platformFees = t.platformFees;
         if (clean.payoutRef) next.payoutRef = clean.payoutRef;
+        if (clean.items && !base.items) next.items = clean.items;             // ชื่อสินค้า (ออเดอร์ที่ยังไม่มีไฟล์ออเดอร์)
+        if (clean.itemLines && base.qty == null) next.qty = clean.itemLines; // จำนวนรายการสินค้า
+        if (clean.itemLines) next.itemLines = Math.max(clean.itemLines, base.itemLines || 0);
         if (t.refundAmount) next.refundAmount = t.refundAmount;
         if (t.grossSales != null && t.salesStrong) { next.grossSales = t.grossSales; next.salesFromIncome = true; }
         else if (t.grossSales != null && base.grossSales == null) next.grossSales = t.grossSales; // Lazada ที่ยังไม่มีไฟล์ออเดอร์
@@ -382,7 +424,7 @@
       note: `${A.PLATFORMS[platform].name} • ${a.type} • ${a.ref}`, source: filename, auto: true, deleted: false,
     }));
     if (adj.length) await A.db.putMany('otherIncome', adj);
-    await A.db.put('imports', { at: Date.now(), filename, platform, report, rows: built.rowCount, orders: recs.length, created, updated, skipped: built.skipped, adjustments: adj.length });
-    return { created, updated, total: recs.length, adjustments: adj.length };
+    await A.db.put('imports', { at: Date.now(), filename, platform, report, rows: built.rowCount, orders: recs.length, items: built.itemCount, created, updated, skipped: built.skipped, adjustments: adj.length });
+    return { created, updated, total: recs.length, items: built.itemCount, adjustments: adj.length };
   };
 })(window.App);

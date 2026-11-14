@@ -18,6 +18,7 @@
       carrier: { label: 'บริษัทขนส่ง', kind: 'first', type: 'text', aliases: ['ตัวเลือกการจัดส่ง', 'บริษัทขนส่ง', 'ผู้ให้บริการขนส่ง', 'shipping option', 'shipping provider', 'shippingprovider', 'shipping provider name', 'delivery option', 'carrier'] },
       items: { label: 'ชื่อสินค้า', kind: 'concat', type: 'text', aliases: ['ชื่อสินค้า', 'product name', 'item name', 'itemname', 'product'] },
       sku: { label: 'SKU', kind: 'concat', type: 'text', aliases: ['เลขอ้างอิง sku (sku reference no.)', 'sku reference no.', 'เลขอ้างอิง sku', 'seller sku', 'sellersku', 'sku ของผู้ขาย', 'sku'] },
+      orderItem: { label: 'รหัสรายการสินค้า (1 ออเดอร์มีได้หลายรายการ)', kind: 'items', type: 'text', aliases: ['orderitemid', 'order item id', 'order item no.', 'รหัสสินค้าในคำสั่งซื้อ'] },
       qty: { label: 'จำนวนชิ้น', kind: 'sum', type: 'num', aliases: ['จำนวน', 'quantity', 'qty', 'จำนวนสินค้า'] },
       // ยอดขายของร้าน = ราคาสินค้า − ส่วนลดที่ร้านออกเอง (ส่วนลดที่แพลตฟอร์มออกให้ แพลตฟอร์มจ่ายคืนร้าน จึงไม่หัก)
       itemGross: { label: 'ราคาสินค้าก่อนส่วนลด (รวมทุกชิ้น)', kind: 'sum', type: 'num', aliases: ['sku subtotal before discount', 'ยอดรวมย่อย sku ก่อนส่วนลด', 'unit price', 'unitprice'] },
@@ -34,6 +35,8 @@
     },
     income: {
       orderNo: { label: 'เลขคำสั่งซื้อ', kind: 'key', type: 'text', required: true, aliases: ['หมายเลขคำสั่งซื้อ', 'เลขที่คำสั่งซื้อ', 'หมายเลขคำสั่งซื้อ/การปรับ', 'หมายเลขคำสั่งซื้อ/การปรับยอด', 'order id', 'order sn', 'order number', 'order no.', 'order no', 'ordernumber', 'order/adjustment id', 'รหัสคำสั่งซื้อ/การปรับปรุง', 'รหัสคำสั่งซื้อ'] },
+      orderItem: { label: 'รหัสรายการสินค้า (1 ออเดอร์มีได้หลายรายการ)', kind: 'items', type: 'text', aliases: ['รหัสสินค้าในคำสั่งซื้อ', 'order item no.', 'order item id', 'orderitemid'] },
+      items: { label: 'ชื่อสินค้า', kind: 'concat', type: 'text', aliases: ['ชื่อสินค้า', 'product name', 'item name'] },
       rowType: { label: 'ประเภทรายการ', kind: 'first', type: 'text', aliases: ['type', 'ประเภท', 'ประเภทรายการ', 'ประเภทธุรกรรม'] },
       // Lazada: ใช้ "วันที่ปรับปรุงเข้ายอดของฉัน" (วันที่เงินเข้ายอดร้านจริง) ก่อน "วันที่ทำรายการ"
       payoutDate: { label: 'วันที่เงินเข้า', kind: 'first', type: 'date', aliases: ['วันที่โอนชำระเงินสำเร็จ', 'วันที่โอนเงินสำเร็จ', 'วันที่โอนเงิน', 'วันที่ได้รับเงิน', 'วันที่ปรับปรุงเข้ายอดของฉัน', 'เวลาที่ชำระคำสั่งซื้อ', 'payout completed date', 'payout date', 'order settled time', 'settled time', 'settlement time', 'เวลาชำระบัญชี', 'release date', 'transaction date', 'วันที่ทำรายการ', 'statement date'] },

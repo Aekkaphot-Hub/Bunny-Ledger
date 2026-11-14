@@ -29,9 +29,15 @@
       const needBackup = !syncing && !fileOn && A.db.count('orders') > 0 && Date.now() - backupAt > 7 * 864e5;
       const fin = !A.workspace || A.workspace.can('finance'); // พนักงาน: ไม่แสดงกำไร/รายจ่าย และไม่มีหน้าย้อนหลัง
       const h = (href) => (fin ? href : null);
+      // เตือนเกณฑ์จด VAT 1.8 ล้าน (ถึง 80% / เกินแล้วแต่ยังไม่ได้ตั้งค่าว่าจด)
+      const vt = fin && A.vat && !st.vat.registered ? A.vat.threshold(t.slice(0, 4)) : null;
+      const vatNotice = !vt || vt.level === 'ok' ? '' : vt.level === 'over'
+        ? `<div class="notice red">${A.icon('percent')}<div><b>รายรับปีนี้เกิน ${U.money0(st.vat.threshold)} แล้ว</b> (${U.thDate(vt.crossDate)}) — ต้องจด VAT ภายใน ${U.thDate(vt.deadline)} • <a href="#/vat">ดูรายละเอียด</a></div></div><div class="mt-s"></div>`
+        : `<div class="notice warn">${A.icon('percent')}<div>รายรับปีนี้ถึง ${U.pct(vt.pct)} ของเกณฑ์จด VAT แล้ว${vt.projected ? ` — คาดว่าจะเกินประมาณ ${U.thMonth(vt.projected)}` : ''} • <a href="#/vat">ดูรายละเอียด</a></div></div><div class="mt-s"></div>`;
 
       el.innerHTML = `
         ${A.demo.has() && (!A.workspace || A.workspace.can('demo')) ? `<div class="notice pink">${A.icon('sparkle')}<div>ตอนนี้มี <b>ข้อมูลตัวอย่าง</b> อยู่ — ลบได้ที่หน้า <a href="#/settings">ตั้งค่า</a> เมื่อพร้อมใช้ข้อมูลจริง</div></div><div class="mt-s"></div>` : ''}
+        ${vatNotice}
         ${needBackup ? `<div class="notice warn">${A.icon('alert')}<div>ข้อมูลยังเก็บอยู่ในแอปอย่างเดียว — <a href="#/backup">ตั้งให้บันทึกลงไฟล์บนคอมอัตโนมัติ</a> หรือดาวน์โหลดไฟล์สำรองเก็บไว้ กันข้อมูลหายนะ</div></div><div class="mt-s"></div>` : ''}
         <div class="kpis">
           ${ui.kpi({ label: 'ยอดขายวันนี้ (ส่งแล้ว)', value: U.money(day.sales), foot: `ส่ง ${U.num(day.orders)} ออเดอร์ • ${ui.delta(day.sales, yday.sales)} จากเมื่อวาน`, icon: 'heart', tone: 'pink', href: h('#/history?gran=day') })}
