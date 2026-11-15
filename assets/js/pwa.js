@@ -4,6 +4,10 @@
   let deferredPrompt = null;
   const pwa = {};
 
+  /* มือถือ: กันการซูมด้วยสองนิ้ว (Safari บน iPhone ไม่สนค่า user-scalable=no ใน viewport) */
+  ['gesturestart', 'gesturechange'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
+  document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
+
   pwa.isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   pwa.isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   pwa.canPrompt = () => !!deferredPrompt;

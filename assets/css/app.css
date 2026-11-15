@@ -481,3 +481,14 @@ code { background: var(--cream-2); border-radius: 6px; padding: 1px 6px; font-si
 .inv .sign { display: flex; justify-content: space-between; margin-top: 40px; }
 .inv .void { position: absolute; top: 35%; left: 20%; font-size: 64pt; color: rgba(200,0,0,.25); transform: rotate(-20deg); font-weight: bold; }
 .page-break { page-break-after: always; break-after: page; height: 0; }
+
+/* ---------- มือถือ: ไม่ให้ซูมขยายหน้าจอ ---------- */
+/* ปิดการแตะสองครั้งเพื่อซูม (ยังเลื่อนหน้าจอได้ตามปกติ) */
+html, body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* iPhone จะซูมเข้าเองเมื่อแตะช่องกรอกที่ตัวอักษรเล็กกว่า 16px — บนจอเล็กใช้ 16px */
+@media (max-width: 900px), (pointer: coarse) {
+  input, select, textarea, .input { font-size: 16px; }
+}
+/* ช่องกรอกในฟอร์มกว้างไม่เกินคอลัมน์ (ตัวอักษรใหญ่ขึ้นแล้วไม่ล้นการ์ด) */
+.form-grid > *, .field { min-width: 0; }
+.field > .input { width: 100%; }
