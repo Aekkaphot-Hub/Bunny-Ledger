@@ -47,7 +47,7 @@
         ${ui.kpi({ label: `เงินเข้า 2 • ของออเดอร์ที่ส่ง${unit}อื่น`, value: U.money(cur.paid2), foot: `${U.num(cur.paid2Count)} ออเดอร์ที่เงินเข้า${unit}นี้ • เงินเข้าบัญชีรวม ${U.money0(cur.received)}`, icon: 'wallet', tone: 'blue' })}
         ${ui.kpi({ label: 'ยังรอเงินเข้า (ของยอดขายช่วงนี้)', value: U.money(cur.pending), icon: 'moneybag', tone: 'blue' })}
         ${ui.kpi({ label: 'รายจ่าย', value: U.money(cur.expenses), foot: ui.delta(cur.expenses, pv.expenses), icon: 'receipt', tone: 'pink' })}
-        ${ui.kpi({ label: 'กำไรเบื้องต้น', value: U.money(cur.profit), foot: `${ui.delta(cur.profit, pv.profit)}${cur.otherIncome ? ` • รวมรายรับอื่น ${U.money0(cur.otherIncome)}` : ''}`, icon: 'sparkle', tone: 'mint' })}
+        ${ui.kpi({ label: A.costing && A.costing.active() ? 'กำไร (หักต้นทุนสินค้าแล้ว)' : 'กำไรเบื้องต้น', value: U.money(cur.profit), foot: `${ui.delta(cur.profit, pv.profit)}${cur.cogs ? ` • ต้นทุน ${U.money0(cur.cogs)}` : ''}${cur.cogsMissing ? ` • <span class="delta-down">ขาดต้นทุน ${cur.cogsMissing}</span>` : ''}${cur.otherIncome ? ` • รายรับอื่น ${U.money0(cur.otherIncome)}` : ''}`, icon: 'sparkle', tone: 'mint' })}
       </div>
 
       <div class="card mt" id="trend-card"></div>

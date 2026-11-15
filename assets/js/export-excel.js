@@ -99,6 +99,7 @@
     { h: 'เงินเข้า 2 (ของออเดอร์ช่วงอื่น)', w: 18, t: 'money', v: (r) => U.round2(r.paid2) },
     { h: 'เงินเข้าบัญชีรวม', t: 'money', v: (r) => U.round2(r.received) },
     { h: 'ยังรอเงินเข้า', t: 'money', v: (r) => U.round2(r.pending) },
+    { h: 'ต้นทุนสินค้า', t: 'money', v: (r) => U.round2(r.cogs) },
     { h: 'รายจ่าย', t: 'money', v: (r) => U.round2(r.expenses) },
     { h: 'รายรับอื่นๆ', t: 'money', v: (r) => U.round2(r.otherIncome) },
     { h: 'กำไรเบื้องต้น', t: 'money', v: (r) => U.round2(r.profit), style: (r) => (r.profit < 0 ? { font: { name: FONT, size: 10, color: { argb: 'FFC25A5A' } } } : null) },
@@ -124,7 +125,7 @@
       sheetTitle(ws, `สรุปบัญชี ${st.shopName}`, `${title ? title + ' • ' : ''}${rangeText} • สร้างเมื่อ ${U.thDateTime(Date.now())}`);
       const kv = [
         ['ยอดขาย', tot.sales], ['จำนวนออเดอร์', tot.orders], ['ค่าธรรมเนียมแพลตฟอร์ม', tot.fees], ['ยอดสุทธิหลังหักค่าธรรมเนียม', tot.net],
-        ['เงินเข้า 1 — ของออเดอร์ที่ส่งช่วงนี้ (ไม่ว่าเงินเข้าวันไหน)', tot.paid1], ['เงินเข้า 2 — เงินที่เข้าช่วงนี้ของออเดอร์ที่ส่งช่วงอื่น', tot.paid2], ['เงินเข้าบัญชีรวมในช่วงนี้', tot.received], ['ยังรอเงินเข้า (ของยอดขายช่วงนี้)', tot.pending], ['รายจ่าย', tot.expenses], ['รายรับอื่นๆ', tot.otherIncome], ['กำไรเบื้องต้น', tot.profit],
+        ['เงินเข้า 1 — ของออเดอร์ที่ส่งช่วงนี้ (ไม่ว่าเงินเข้าวันไหน)', tot.paid1], ['เงินเข้า 2 — เงินที่เข้าช่วงนี้ของออเดอร์ที่ส่งช่วงอื่น', tot.paid2], ['เงินเข้าบัญชีรวมในช่วงนี้', tot.received], ['ยังรอเงินเข้า (ของยอดขายช่วงนี้)', tot.pending], ['ต้นทุนสินค้า', tot.cogs], ['รายจ่าย', tot.expenses], ['รายรับอื่นๆ', tot.otherIncome], [A.costing && A.costing.active() ? 'กำไร (หักต้นทุนสินค้าแล้ว)' : 'กำไรเบื้องต้น', tot.profit],
       ];
       table(ws, 4, [{ h: 'รายการ', w: 34, t: 'text', v: (r) => r[0] }, { h: 'จำนวน', w: 18, t: 'money', v: (r) => (r[0] === 'จำนวนออเดอร์' ? r[1] : U.round2(r[1])), style: (r) => (r[0] === 'จำนวนออเดอร์' ? { numFmt: '#,##0' } : null) }], kv, { totals: false });
       const pfRows = A.PF_KEYS.filter((k) => !platform || k === platform).map((k) => ({ k, ...S.range(from, to, { platform: k }) }));
@@ -161,7 +162,7 @@
       const ws = sheet(wb, name, 4);
       sheetTitle(ws, `${name} — ${st.shopName}`, rangeText);
       table(ws, 4, periodCols(label), rows, { fill: gran === 'week' ? BLUE : PINK });
-      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: 12 } };
+      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: 13 } };
     };
     addPeriod('daily', 'day', 'สรุปรายวัน', 'วันที่');
     addPeriod('weekly', 'week', 'สรุปรายสัปดาห์', 'สัปดาห์ (จันทร์–อาทิตย์)');
@@ -184,12 +185,13 @@
         { h: 'ยอดที่ควรได้', t: 'money', v: (o) => (A.isVoid(o.status) ? 0 : U.round2(C.expected(o, st))) },
         { h: 'เงินเข้า 1', t: 'money', v: (o) => U.round2(U.sum(C.payoutParts(o), (p) => p.amount || 0)) },
         { h: 'วันที่เงินเข้า', w: 12, t: 'date', v: (o) => o.payoutDate },
+        { h: 'ต้นทุนสินค้า', t: 'money', v: (o) => { const c = A.costing && A.costing.active() ? A.costing.orderCost(o, st) : null; return c && c.counted && !c.missing ? c.cost : null; } },
         { h: 'วันที่สั่ง', w: 12, t: 'date', v: (o) => o.orderDate },
         { h: 'วันที่ได้รับ', w: 12, t: 'date', v: (o) => o.deliveredDate || o.completedDate },
         { h: 'เลขพัสดุ', w: 18, t: 'text', v: (o) => o.trackingNo || '' },
         { h: 'โน้ต', w: 24, t: 'text', v: (o) => [C.saleDateEstimated(o) && C.saleDate(o) ? '* ไม่มีวันส่งในไฟล์' : '', o.note || ''].filter(Boolean).join(' • ') },
       ], items.orders.slice().sort((a, b) => day(a).localeCompare(day(b))));
-      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: 16 } };
+      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: 17 } };
       // เงินเข้า 2: เงินที่เข้าในช่วงนี้ของออเดอร์ที่ส่งช่วงอื่น
       const ws2 = sheet(wb, 'เงินเข้า 2', 4);
       sheetTitle(ws2, 'เงินเข้า 2 — เงินที่เข้าในช่วงนี้ของออเดอร์ที่ส่งช่วงอื่น', rangeText);

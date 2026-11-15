@@ -20,7 +20,7 @@
   // ข้อมูลที่แต่ละบทบาทซิงก์ได้ (ต้องตรงกับ firestore.rules)
   const STAFF_READ = ['orders', 'imports', 'templates', 'settings'];
   const STAFF_WRITE = ['orders', 'imports', 'templates', 'otherIncome'];
-  const STAFF_PAGES = ['dashboard', 'import', 'verify', 'shops', 'receivables', 'tracking', 'settings', 'sync'];
+  const STAFF_PAGES = ['dashboard', 'import', 'verify', 'shops', 'receivables', 'tracking', 'claims', 'settings', 'sync'];
   const ws = { ROLES, ROLE_DESC };
 
   ws.active = () => {

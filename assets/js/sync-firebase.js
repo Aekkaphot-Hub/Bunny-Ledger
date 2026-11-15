@@ -70,25 +70,40 @@
     setCursor(c);
     return fresh.length;
   }
+  /* ข้อมูลชุดใหม่ (ต้นทุน / เงินเข้าธนาคาร) ต้องอัปเดตกฎ firestore.rules ก่อน — ถ้ายังไม่อัปเดต ข้ามไปก่อน ไม่ให้ซิงก์ทั้งหมดล้ม */
+  const NEW_STORES = ['products', 'deposits'];
+  const blocked = new Set();
+  const denied = (e) => e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
+  const guard = async (s, fn) => {
+    try { return await fn(); } catch (e) {
+      if (NEW_STORES.includes(s) && denied(e)) { blocked.add(s); return 0; }
+      throw e;
+    }
+  };
   async function push() {
     let n = 0;
     for (const s of WRITE_STORES()) {
       const dirty = A.db.dirty(s);
       if (!dirty.length) continue;
       const docs = dirty.map(clean);
-      for (let i = 0; i < docs.length; i += BATCH) {
-        const part = docs.slice(i, i + BATCH);
-        await backend.write(s, part);
-        await A.db.markClean(s, part.map((d) => ({ id: d.id, updatedAt: d.updatedAt })));
-        n += part.length;
-      }
+      n += await guard(s, async () => {
+        let k = 0;
+        for (let i = 0; i < docs.length; i += BATCH) {
+          const part = docs.slice(i, i + BATCH);
+          await backend.write(s, part);
+          await A.db.markClean(s, part.map((d) => ({ id: d.id, updatedAt: d.updatedAt })));
+          k += part.length;
+        }
+        blocked.delete(s);
+        return k;
+      });
     }
     return n;
   }
   async function pull() {
     let n = 0;
     const c = getCursor();
-    for (const s of READ_STORES()) n += await applyRemote(s, await backend.pull(s, c[s] || 0));
+    for (const s of READ_STORES()) n += await guard(s, async () => applyRemote(s, await backend.pull(s, c[s] || 0)));
     return n;
   }
   function listen() {
@@ -97,7 +112,7 @@
     READ_STORES().forEach((s) => {
       unsubs.push(backend.listen(s, c[s] || 0, (docs) => {
         applyRemote(s, docs).then((n) => { if (n) setStatus({ state: 'ok', at: Date.now() }); }).catch((e) => console.error(e));
-      }, (err) => { console.error(err); setStatus({ state: 'error', msg: err.message }); }));
+      }, (err) => { if (NEW_STORES.includes(s) && denied(err)) { blocked.add(s); return; } console.error(err); setStatus({ state: 'error', msg: err.message }); }));
     });
   }
 
@@ -265,6 +280,8 @@
     },
     user: () => (auth && auth.currentUser) || null,
     pending: () => safePending(),
+    // ข้อมูลชุดที่กฎ Firebase ยังไม่อนุญาต (ต้องเผยแพร่ firestore.rules ใหม่)
+    blocked: () => [...blocked],
     firestore: () => firebase.firestore(),
     async syncNow() { try { return await syncNow(); } catch (e) { throw new Error(thErr(e)); } },
     /* ลืมจุดซิงก์ล่าสุดของทุกบัญชีในเครื่องนี้ → เข้าสู่ระบบครั้งหน้าจะดึงข้อมูลทั้งหมดลงมาใหม่ */

@@ -137,7 +137,12 @@
   C.badges = () => {
     const r = C.receivables().filter((x) => x.overdue).length;
     const t = C.tracking();
-    return { receivables: r, tracking: t.notReceived.length + t.pendingShip.filter((x) => x.late).length };
+    const safe = (fn) => { try { return fn(); } catch (e) { console.error(e); return 0; } };
+    return {
+      receivables: r, tracking: t.notReceived.length + t.pendingShip.filter((x) => x.late).length,
+      claims: A.claimsLib ? safe(A.claimsLib.badge) : 0,
+      bank: A.bankLib && (!A.workspace || A.workspace.canPage('bank')) ? safe(A.bankLib.badge) : 0,
+    };
   };
 
   A.calc = C;

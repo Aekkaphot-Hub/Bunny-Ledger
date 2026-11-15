@@ -106,6 +106,8 @@
       incomeSales: fileRows.filter((r) => report !== 'income' && r.o && r.o.salesFromIncome).length,
       incomeSalesDiff: sum(fileRows.filter((r) => report !== 'income' && r.o && r.o.salesFromIncome), (r) => (r.app.sales || 0) - (r.file.sales || 0)),
       fileAdj: sum(adj, (a) => a.amount), appAdj: sum(adj, (a) => a.app),
+      // ปรับปรุงยอดที่อยู่ชีตแยก (Shopee: Adjustment) — ยอดสรุปของแพลตฟอร์มไม่รวมส่วนนี้
+      extAdj: sum((built.linked || []).concat(adj).filter((a) => a.external), (a) => a.amount),
       count: Object.fromEntries(Object.keys(STATUS).map((k) => [k, rows.filter((r) => r.status === k).length])),
     };
     return { platform, report, built, rows, adj, tot, from, to, summary: parsed.summary, lines: fileLines(parsed, report, mapping) };
@@ -172,7 +174,7 @@
     const t = r.tot, inc = r.report === 'income';
     const problems = t.count.diff + t.count.missing + t.count.unpaid + t.count.extra;
     const s = r.summary || {};
-    const pfTotal = s.payout && inc ? cmp(`ยอดสรุปของ ${A.PLATFORMS[r.platform].name} (${U.esc(s.payout.label)})`, s.payout.value, U.round2(t.appPay + t.appAdj), { note: `ในไฟล์รวมทุกบรรทัด ${U.money(t.filePay + t.fileAdj)}${t.fileAdj ? ` (รวมเงินชดเชย ${U.money(t.fileAdj)})` : ''}` }) : '';
+    const pfTotal = s.payout && inc ? cmp(`ยอดสรุปของ ${A.PLATFORMS[r.platform].name} (${U.esc(s.payout.label)})`, s.payout.value, U.round2(t.appPay + t.appAdj - t.extAdj), { note: `ในไฟล์รวมทุกบรรทัด ${U.money(t.filePay + t.fileAdj - t.extAdj)}${t.fileAdj ? ` (รวมเงินชดเชย ${U.money(t.fileAdj)})` : ''}${t.extAdj ? ` • ไม่รวมเงินปรับปรุงยอด ${U.money(t.extAdj)} จากชีต Adjustment (นับเป็นเงินเข้าของออเดอร์แล้ว)` : ''}` }) : '';
     const list = filtered(r);
     return `
       <div class="card">

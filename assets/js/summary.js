@@ -28,13 +28,14 @@
   // วันที่ของออเดอร์ = วันที่ส่ง (ออเดอร์ยกเลิก/คืนที่ไม่มีวันส่ง ใช้วันที่สั่ง)
   S.dayOf = (o) => (A.isVoid(o.status) ? A.calc.saleDate(o) || o.orderDate : A.calc.saleDate(o));
 
-  const blank = () => ({ sales: 0, orders: 0, fees: 0, received: 0, receivedCount: 0, paid1: 0, paid1Count: 0, paid2: 0, paid2Count: 0, pending: 0, expenses: 0, otherIncome: 0, voided: 0, qty: 0 });
+  const blank = () => ({ sales: 0, orders: 0, fees: 0, received: 0, receivedCount: 0, paid1: 0, paid1Count: 0, paid2: 0, paid2Count: 0, cogs: 0, cogsMissing: 0, pending: 0, expenses: 0, otherIncome: 0, voided: 0, qty: 0 });
   const pfOk = (f, p) => !f.platform || f.platform === p;
   const shopOk = (f, s) => !f.shop || f.shop === s;
 
   /* one pass over all data → buckets keyed by period */
   S.bucket = (gran, from, to, f = {}) => {
     const st = A.settings();
+    const costOn = A.costing && A.costing.active();
     const map = new Map();
     S.periods(gran, from, to).forEach((p) => map.set(p.key, { ...p, ...blank() }));
     const add = (d, fn) => {
@@ -46,6 +47,8 @@
       if (!pfOk(f, o.platform) || !shopOk(f, o.shop)) return;
       // ยอดขายนับตามวันที่ส่งสินค้า / ออเดอร์ยกเลิกนับจำนวนตามวันที่สั่ง
       add(A.isVoid(o.status) ? (A.calc.saleDate(o) || o.orderDate) : A.calc.saleDate(o), (b) => {
+        // ต้นทุนสินค้า (เมื่อตั้งต้นทุนไว้แล้ว)
+        if (costOn) { const c = A.costing.orderCost(o, st); if (c.counted) { b.cogs += c.cost; if (c.missing) b.cogsMissing++; } }
         if (A.isVoid(o.status)) {
           b.voided++;
           // ออเดอร์คืนสินค้าที่โดนหักค่าส่งคืน (เงินเข้าติดลบ) นับเป็นค่าใช้จ่าย
@@ -78,13 +81,13 @@
     });
     if (!f.platform) A.db.all('otherIncome').forEach((e) => add(e.date, (b) => { b.otherIncome += e.amount || 0; }));
     const rows = [...map.values()];
-    rows.forEach((b) => { b.net = b.sales - b.fees; b.profit = b.sales - b.fees + b.otherIncome - b.expenses; });
+    rows.forEach((b) => { b.net = b.sales - b.fees; b.gross = b.net - b.cogs; b.profit = b.sales - b.fees - b.cogs + b.otherIncome - b.expenses; });
     return rows;
   };
   S.total = (rows) => {
     const t = blank();
     rows.forEach((r) => Object.keys(t).forEach((k) => { t[k] += r[k]; }));
-    t.net = t.sales - t.fees; t.profit = t.sales - t.fees + t.otherIncome - t.expenses;
+    t.net = t.sales - t.fees; t.gross = t.net - t.cogs; t.profit = t.sales - t.fees - t.cogs + t.otherIncome - t.expenses;
     return t;
   };
   S.range = (from, to, f = {}) => S.total(S.bucket('month', from, to, f));

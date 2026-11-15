@@ -17,6 +17,7 @@
       trackingNo: { label: 'เลขพัสดุ', kind: 'first', type: 'text', aliases: ['หมายเลขติดตามพัสดุ', 'เลขพัสดุ', 'tracking number', 'tracking no', 'tracking id', 'tracking code', 'trackingcode', 'หมายเลขพัสดุ'] },
       carrier: { label: 'บริษัทขนส่ง', kind: 'first', type: 'text', aliases: ['ตัวเลือกการจัดส่ง', 'บริษัทขนส่ง', 'ผู้ให้บริการขนส่ง', 'shipping option', 'shipping provider', 'shippingprovider', 'shipping provider name', 'delivery option', 'carrier'] },
       items: { label: 'ชื่อสินค้า', kind: 'concat', type: 'text', aliases: ['ชื่อสินค้า', 'product name', 'item name', 'itemname', 'product'] },
+      variation: { label: 'ตัวเลือกสินค้า (สี/ไซส์)', kind: 'lines', type: 'text', aliases: ['ชื่อตัวเลือก', 'variation', 'variation name', 'ตัวเลือกสินค้า'] },
       sku: { label: 'SKU', kind: 'concat', type: 'text', aliases: ['เลขอ้างอิง sku (sku reference no.)', 'sku reference no.', 'เลขอ้างอิง sku', 'seller sku', 'sellersku', 'sku ของผู้ขาย', 'sku'] },
       orderItem: { label: 'รหัสรายการสินค้า (1 ออเดอร์มีได้หลายรายการ)', kind: 'items', type: 'text', aliases: ['orderitemid', 'order item id', 'order item no.', 'รหัสสินค้าในคำสั่งซื้อ'] },
       qty: { label: 'จำนวนชิ้น', kind: 'sum', type: 'num', aliases: ['จำนวน', 'quantity', 'qty', 'จำนวนสินค้า'] },
@@ -54,6 +55,10 @@
       feesTotal: { label: 'ค่าธรรมเนียมรวม', kind: 'first', type: 'num', aliases: ['ค่าธรรมเนียมทั้งหมด', 'total fees', 'total fee'] },
       fees: { label: 'ค่าธรรมเนียม (แยกหลายคอลัมน์)', kind: 'multi', type: 'num', aliases: ['ค่าคอมมิชชั่น', 'ค่าคอมมิชชัน', 'commission fee', 'ค่าธรรมเนียมบริการ', 'ค่าบริการ', 'service fee', 'ค่าธรรมเนียมการชำระเงิน', 'ค่าธรรมเนียมธุรกรรม', 'transaction fee', 'payment fee', 'platform commission fee', 'affiliate commission', 'ค่าคอมมิชชั่นแพลตฟอร์ม'] },
       orderDate: { label: 'วันที่สั่งซื้อ', kind: 'first', type: 'date', aliases: ['วันที่ทำการสั่งซื้อ', 'เวลาที่สร้างคำสั่งซื้อ', 'วันที่สร้างคำสั่งซื้อ', 'order creation date', 'order created time', 'created time', 'เวลาที่สร้าง'] },
+      // ค่าส่งที่ร้านจ่ายเอง (รวมแบบมีเครื่องหมาย ติดลบ = ร้านจ่าย) และน้ำหนักพัสดุ — ใช้หาออเดอร์ที่โดนค่าส่งเกิน/น้ำหนักเกิน
+      shipNet: { label: 'ค่าส่งที่ร้านจ่ายสุทธิ (หลายคอลัมน์)', kind: 'net', type: 'num', aliases: ['ยอดรวมค่าจัดส่งที่ร้านค้าจ่ายจริง', 'ค่าจัดส่งที่ชำระโดยผู้ซื้อ', 'ค่าจัดส่งสินค้าที่ออกโดย shopee', 'ค่าจัดส่งที่ shopee ชำระโดยชื่อของคุณ', 'ค่าจัดส่งสินค้าคืน', 'ค่าจัดส่งสินค้าคืนผู้ขาย'] },
+      weightEst: { label: 'น้ำหนักพัสดุโดยประมาณ', kind: 'first', type: 'num', aliases: ['น้ำหนักพัสดุโดยประมาณ', 'estimated package weight'] },
+      weightBilled: { label: 'น้ำหนักที่เรียกเก็บเงิน', kind: 'first', type: 'num', aliases: ['น้ำหนักที่เรียกเก็บเงิน', 'chargeable weight', 'billed weight'] },
       payoutRef: { label: 'เลขอ้างอิงการโอน', kind: 'first', type: 'text', aliases: ['หมายเลขอ้างอิงการโอน', 'รหัสรอบบิล', 'payout id', 'statement', 'statement number', 'settlement id'] },
     },
   };

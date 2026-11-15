@@ -2,8 +2,9 @@
    ทุกเรคคอร์ดมี updatedAt, deleted (soft delete), _dirty (รอซิงก์ขึ้นคลาวด์) */
 (function (A) {
   let DB_NAME = 'bunny-ledger'; // แต่ละร้านมีฐานข้อมูลของตัวเอง (ดู workspace.js)
-  const VERSION = 2;
-  const STORES = ['orders', 'expenses', 'otherIncome', 'imports', 'settings', 'templates'];
+  const VERSION = 3;
+  // products = ต้นทุนสินค้า (SKU) + การจับคู่ชื่อสินค้า • deposits = เงินเข้าบัญชีธนาคาร (ยอดถอน + การยืนยัน)
+  const STORES = ['orders', 'expenses', 'otherIncome', 'imports', 'settings', 'templates', 'products', 'deposits'];
   const META = 'meta'; // ค่าเฉพาะเครื่องนี้ (เช่น ไฟล์ที่เลือกให้บันทึก) — ไม่ซิงก์ ไม่ส่งออก
   let idb = null;
   const cache = {};
@@ -151,6 +152,7 @@
       payoutDays: { ...d.payoutDays, ...(s.payoutDays || {}) },
       feeRate: { ...d.feeRate, ...(s.feeRate || {}) },
       vat: { ...d.vat, ...(s.vat || {}) },
+      cost: { ...d.cost, ...(s.cost || {}) },
       expenseCategories: s.expenseCategories || d.expenseCategories,
       incomeCategories: s.incomeCategories || d.incomeCategories,
       shops: s.shops || [],

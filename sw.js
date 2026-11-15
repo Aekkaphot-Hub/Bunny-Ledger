@@ -2,17 +2,21 @@
    - ไฟล์ของแอปเอง: ลองโหลดใหม่จากเซิร์ฟเวอร์ก่อน (ได้เวอร์ชันล่าสุด) ถ้าไม่ได้ใช้ของในแคช
    - ไลบรารีจาก CDN (ล็อกเวอร์ชันแล้ว) และฟอนต์: ใช้ของในแคชก่อน
    - ข้อมูลบัญชี / Firestore: ไม่ผ่านแคชนี้เด็ดขาด */
-const VERSION = 'bunny-ledger-v13';
+const VERSION = 'bunny-ledger-v14';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/css/app.css',
   'assets/img/bunny-logo.svg', 'assets/img/app-icon.svg', 'assets/img/icon-192.png', 'assets/img/icon-512.png', 'assets/img/icon-180.png',
-  'assets/js/util.js', 'assets/js/icons.js', 'assets/js/constants.js', 'assets/js/workspace.js', 'assets/js/db.js', 'assets/js/calc.js', 'assets/js/summary.js',
+  'assets/js/util.js', 'assets/js/icons.js', 'assets/js/constants.js', 'assets/js/workspace.js', 'assets/js/db.js', 'assets/js/calc.js',
+  'assets/js/costing.js', 'assets/js/summary.js',
   'assets/js/charts.js', 'assets/js/ui.js', 'assets/js/demo.js', 'assets/js/firebase-config.js', 'assets/js/filestore.js',
   'assets/js/importers/common.js', 'assets/js/importers/platforms.js', 'assets/js/connectors/api-stub.js',
   'assets/js/export-excel.js', 'assets/js/sync-firebase.js', 'assets/js/pwa.js',
   'assets/js/pages/dashboard.js', 'assets/js/pages/history.js', 'assets/js/pages/import.js', 'assets/js/pages/shops.js',
   'assets/js/pages/receivables.js', 'assets/js/pages/tracking.js', 'assets/js/pages/ledger.js', 'assets/js/pages/fees.js',
+  'assets/js/pages/costs.js',
+  'assets/js/pages/claims.js',
+  'assets/js/pages/bank.js',
   'assets/js/pages/verify.js', 'assets/js/pages/vat.js', 'assets/js/pages/reports.js', 'assets/js/pages/account.js', 'assets/js/auth-gate.js', 'assets/js/pages/backup.js', 'assets/js/pages/settings.js',
   'assets/js/app.js',
 ];

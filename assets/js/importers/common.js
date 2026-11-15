@@ -5,7 +5,7 @@
   const I = {};
   A.importers = I;
 
-  const NO_FUZZY = new Set(['orderItem', 'qty', 'status', 'sku', 'amount', 'rowType', 'relatedOrder', 'substatus', 'carrier', 'itemRefund', 'sellerDiscount', 'itemGross']);
+  const NO_FUZZY = new Set(['variation', 'weightEst', 'weightBilled', 'orderItem', 'qty', 'status', 'sku', 'amount', 'rowType', 'relatedOrder', 'substatus', 'carrier', 'itemRefund', 'sellerDiscount', 'itemGross']);
   I.norm = (s) => String(s == null ? '' : s).toLowerCase().replace(/[\s\*\(\)\[\]\.:_\-\/฿,"'#]/g, '');
 
   /* ---------- reading ---------- */
@@ -39,6 +39,8 @@
     if (!best) throw new Error('ไม่พบหัวตารางที่มีเลขคำสั่งซื้อในไฟล์นี้');
     I.stripPII(best);
     best.summary = I.platformSummary(wb, best.sheet);
+    best.withdrawals = I.withdrawals(wb, best.sheet);
+    best.extraAdj = I.adjustmentSheet(wb, best.sheet);
     return best;
   };
 
@@ -65,6 +67,47 @@
       });
     });
     return Object.keys(out).length ? out : null;
+  };
+
+  /* ชีตตารางอื่นในไฟล์รายได้: หาแถวหัวตารางที่มีคอลัมน์ตามชื่อ แล้วคืนแถวข้อมูลเป็น object (อ่านเฉพาะคอลัมน์ที่ขอ) */
+  function sideTable(wb, skipSheet, want) {
+    for (const name of wb.SheetNames) {
+      if (name === skipSheet) continue;
+      I.fixRange(wb.Sheets[name]);
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '', blankrows: false });
+      for (let i = 0; i < Math.min(rows.length, 40); i++) {
+        const nh = rows[i].map(I.norm);
+        const idx = {};
+        Object.entries(want).forEach(([k, names]) => { const j = nh.findIndex((h) => names.some((n) => h === I.norm(n))); if (j >= 0) idx[k] = j; });
+        if (Object.keys(idx).length === Object.keys(want).length) {
+          return rows.slice(i + 1).map((r) => { const o = {}; Object.entries(idx).forEach(([k, j]) => { o[k] = r[j]; }); return o; });
+        }
+      }
+    }
+    return [];
+  }
+  /* TikTok: ชีต "บันทึกการถอน" = สมุดยอดเงินใน TikTok (ไม่อ่านคอลัมน์เลขบัญชี)
+     Earnings (+) = เงินเข้ายอด TikTok รายวัน • Withdrawal (−) = ถอนเข้าบัญชีธนาคาร */
+  I.withdrawals = (wb, skipSheet) => sideTable(wb, skipSheet, {
+    type: ['ประเภทธุรกรรม', 'type', 'transaction type'], ref: ['id อ้างอิง', 'reference id'], amount: ['จำนวน', 'amount'], date: ['เวลาที่สำเร็จ', 'completed time', 'success time'], requested: ['เวลาส่งคำขอ', 'request time'], status: ['สถานะ', 'status'],
+  }).map((r) => {
+    const amount = U.parseNumber(r.amount);
+    const kind = /withdraw|ถอน/i.test(String(r.type || '')) || amount < 0 ? 'wd' : 'earn';
+    return { kind, ref: String(r.ref || '').trim(), amount: amount == null ? null : U.round2(Math.abs(amount)), date: U.parseDate(r.date) || U.parseDate(r.requested), status: String(r.status || '').trim() };
+  }).filter((r) => r.ref && /\d/.test(r.ref) && r.amount != null && r.date);
+  /* Shopee: ชีต "Adjustment" = เงินปรับปรุงยอด (เช่น เคลมค่าจัดส่ง) ที่โอนแยกจากยอดของออเดอร์ */
+  I.adjustmentSheet = (wb, skipSheet) => {
+    const rows = sideTable(wb, skipSheet, {
+      date: ['วันที่โอนยอดเงินที่ปรับปรุง'], type: ['ประเภทการปรับปรุง | คำอธิบาย', 'ประเภทการปรับปรุง'], amount: ['ยอดที่ปรับปรุง'], order: ['รหัสคำสั่งซื้อที่เกี่ยวข้อง'],
+    });
+    const seen = {};
+    return rows.map((r) => {
+      const date = U.parseDate(r.date), amount = U.parseNumber(r.amount), order = String(r.order || '').trim();
+      if (!date || amount == null) return null;
+      const base = `sa-${date}-${order || 'x'}`;
+      seen[base] = (seen[base] || 0) + 1;
+      return { ref: `${base}-${seen[base]}`, type: String(r.type || 'ปรับปรุงยอด').trim(), date, amount: U.round2(amount), order: /^[0-9A-Za-z]{6,40}$/.test(order) ? order : undefined, external: true };
+    }).filter(Boolean);
   };
 
   /* ล้างข้อมูลส่วนตัวของลูกค้าทิ้งทันทีหลังอ่านไฟล์ (ชื่อ ที่อยู่ เบอร์โทร อีเมล ฯลฯ — ดู I.PII)
@@ -127,7 +170,7 @@
     // pass 1: exact
     Object.entries(fields).forEach(([k, f]) => {
       const al = f.aliases.map(I.norm);
-      if (f.kind === 'multi') {
+      if (f.kind === 'multi' || f.kind === 'net') {
         const idx = nh.map((h, i) => (al.includes(h) && !used.has(i) ? i : -1)).filter((i) => i >= 0);
         if (idx.length) { map[k] = idx; idx.forEach((i) => used.add(i)); }
         return;
@@ -136,7 +179,7 @@
     });
     // pass 2: header contains alias (for slightly different names)
     Object.entries(fields).forEach(([k, f]) => {
-      if (map[k] != null || NO_FUZZY.has(k) || f.kind === 'multi') return;
+      if (map[k] != null || NO_FUZZY.has(k) || f.kind === 'multi' || f.kind === 'net') return;
       const al = f.aliases.map(I.norm).filter((a) => a.length >= 6);
       for (let i = 0; i < nh.length; i++) if (!used.has(i) && al.some((a) => nh[i].includes(a))) { map[k] = i; used.add(i); return; }
     });
@@ -177,12 +220,23 @@
       if (Array.isArray(v)) { const idx = v.map((n) => headers.indexOf(n)).filter((i) => i >= 0); if (idx.length) m[k] = idx; }
       else { const i = headers.indexOf(v); if (i >= 0) m[k] = i; }
     });
+    // ช่องที่โปรแกรมเพิ่มภายหลัง (เช่น ตัวเลือกสินค้า ค่าส่ง) แต่แม่แบบเก่ายังไม่มี → เติมจากการจับคู่อัตโนมัติ
+    if (tpl.report && I.FIELDS[tpl.report]) {
+      const used = new Set(Object.values(m).flat());
+      Object.entries(I.autoMap(headers, tpl.report)).forEach(([k, v]) => {
+        if (k in tpl.mapping) return;
+        const idx = [].concat(v);
+        if (idx.some((i) => used.has(i))) return;
+        m[k] = v; idx.forEach((i) => used.add(i));
+      });
+    }
     return m;
   };
 
   /* ---------- transform rows → normalized records ---------- */
   const cleanId = (v) => String(v == null ? '' : v).trim().replace(/^'+/, '').replace(/\.0+$/, '');
-  I.build = ({ rows, headerIdx }, platform, report, mapping, shop) => {
+  I.build = (parsed, platform, report, mapping, shop) => {
+    const { rows, headerIdx } = parsed;
     const fields = I.FIELDS[report];
     const data = rows.slice(headerIdx + 1);
     // decide date order per file (d/m/y or m/d/y)
@@ -245,8 +299,13 @@
       if (shop) rec.shop = shop;
       Object.entries(fields).forEach(([k, f]) => {
         const col = mapping[k];
-        if (col == null || k === 'orderNo' || f.kind === 'items') return;
-        if (f.kind === 'multi') {
+        if (col == null || k === 'orderNo' || f.kind === 'items' || f.kind === 'lines') return;
+        if (f.kind === 'net') {
+          // รวมหลายคอลัมน์แบบมีเครื่องหมาย (เช่น ค่าส่งที่ร้านจ่ายสุทธิ)
+          let total = null;
+          col.forEach((c) => { const v = rs.map((r) => U.parseNumber(r[c])).find((x) => x != null); if (v != null) total = (total || 0) + v; });
+          if (total != null) rec[k] = U.round2(total);
+        } else if (f.kind === 'multi') {
           let total = null;
           col.forEach((c) => {
             const v = rs.map((r) => U.parseNumber(r[c])).find((x) => x != null);
@@ -276,6 +335,22 @@
         else if (rec.itemSubtotal != null) rec.grossSales = rec.itemSubtotal;
         if (paidByBuyer != null) rec.buyerPaid = paidByBuyer;
         if (mapping.qty == null) rec.qty = rs.length;
+        // รายการสินค้าในออเดอร์ (ชื่อ + ตัวเลือก + จำนวน) ใช้คิดต้นทุนสินค้า
+        if (mapping.items != null) {
+          const ls = new Map();
+          rs.forEach((r) => {
+            const n = String(r[mapping.items] || '').trim();
+            if (!n) return;
+            const v = mapping.variation != null ? String(r[mapping.variation] || '').trim() : '';
+            const s = mapping.sku != null ? String(r[mapping.sku] || '').trim() : '';
+            const q = mapping.qty != null ? U.parseNumber(r[mapping.qty]) || 0 : 1;
+            const key = n + '\u0001' + v;
+            const cur = ls.get(key) || { n, v, s, q: 0 };
+            cur.q += q;
+            ls.set(key, cur);
+          });
+          if (ls.size) rec.lines = [...ls.values()].map((l) => { const o = { n: l.n, q: l.q }; if (l.v) o.v = l.v; if (l.s) o.s = l.s; return o; });
+        }
         // คืนเงิน / คืนสินค้า
         const refund = rec.orderRefund != null ? rec.orderRefund : rec.itemRefund;
         if (refund > 0) {
@@ -310,6 +385,10 @@
           delete rec.amount;
         }
         delete rec.feeName; delete rec.paidStatus; delete rec.rowType; delete rec.relatedOrder;
+        // ค่าส่งที่ร้านจ่ายเอง (ติดลบ = ร้านจ่าย) และน้ำหนักพัสดุ → ใช้หาออเดอร์ที่ควรเคลม
+        const ship = rec.shipNet != null && rec.shipNet < 0 ? U.round2(-rec.shipNet) : 0;
+        const w = rec.weightBilled != null || rec.weightEst != null ? [rec.weightEst || 0, rec.weightBilled || 0] : null;
+        delete rec.shipNet; delete rec.weightEst; delete rec.weightBilled;
         // Shopee: ยอดขาย = สินค้าราคาปกติ − ส่วนลดจากร้าน (ส่วนลดที่ Shopee ออกให้ไม่หัก)
         if (rec.itemGross != null) rec.grossSales = U.round2(rec.itemGross - Math.abs(rec.sellerDiscount || 0));
         delete rec.itemGross; delete rec.sellerDiscount;
@@ -321,21 +400,25 @@
         if (rec.actualPayout == null) return;
         // เงินเข้า 1 รอบ (ยอดขายเก็บแบบก่อนหักเงินคืน แล้วไปหักตอนรวมทุกรอบ)
         rec._part = { pay: rec.actualPayout, gross: rec.grossSales != null ? rec.grossSales : null, refund, fees: rec.platformFees != null ? rec.platformFees : null };
+        if (ship) rec._part.ship = ship;
+        if (w) rec._part.w = w;
         if (lineBased) rec._part.weak = true; // Lazada: ยอดขายเดาจากรายการเงินบวก ใช้เมื่อไม่มีไฟล์ออเดอร์เท่านั้น
       }
       out.push(rec);
     });
     // เงินชดเชยที่ผูกกับออเดอร์ → รวมเข้ารอบเงินเข้าของออเดอร์นั้น (วันเดียวกัน) หรือเป็นรอบเงินเข้าแยกของออเดอร์นั้น
     const linked = [];
+    if (report === 'income') (parsed.extraAdj || []).forEach((a) => adjustments.set(`${a.ref}|${a.date}`, { ...a }));
     adjustments.forEach((a, k) => {
       if (!a.order) return;
       const rec = out.find((r) => r.orderNo === a.order && (r.payoutDate || '') === a.date);
       if (rec) {
         rec._part.pay = U.round2(rec._part.pay + a.amount);
-        rec._part.comp = U.round2((rec._part.comp || 0) + a.amount);
+        rec._part.adj = U.round2((rec._part.adj || 0) + a.amount);
+        if (a.amount > 0) rec._part.comp = U.round2((rec._part.comp || 0) + a.amount);
         rec.actualPayout = rec._part.pay;
       } else {
-        out.push({ platform, orderNo: a.order, payoutDate: a.date || undefined, actualPayout: a.amount, _compOnly: { ...a }, _part: { pay: a.amount, comp: a.amount, gross: null, refund: 0, fees: null } });
+        out.push({ platform, orderNo: a.order, payoutDate: a.date || undefined, actualPayout: a.amount, _compOnly: { ...a }, _part: { pay: a.amount, adj: a.amount, comp: a.amount > 0 ? a.amount : 0, gross: null, refund: 0, fees: null } });
       }
       a.linked = true;
       linked.push(a);
@@ -350,7 +433,7 @@
       if (countItems) r.itemLines = n;
       itemCount += n;
     });
-    return { records: out, skipped, dateOrder, rowCount: data.length, itemCount: countItems ? itemCount : null, adjustments: [...adjustments.values()], linked };
+    return { records: out, skipped, dateOrder, rowCount: data.length, itemCount: countItems ? itemCount : null, adjustments: [...adjustments.values()], linked, withdrawals: report === 'income' ? parsed.withdrawals || [] : [] };
   };
 
   /* รวมเงินเข้าหลายรอบของออเดอร์เดียวกัน → { parts: { 'YYYY-MM-DD': {pay, gross, refund, fees} }, ยอดรวม } */
@@ -374,6 +457,12 @@
     if (fees.length) out.platformFees = U.round2(U.sum(fees, (p) => p.fees));
     const refund = U.round2(U.sum(list, (p) => p.refund || 0));
     out.refundAmount = refund || undefined;
+    const ship = U.round2(U.sum(list, (p) => p.ship || 0));
+    if (ship) out.shipPaid = ship;
+    const comp = U.round2(U.sum(list, (p) => p.comp || 0));
+    if (comp) out.compGot = comp;
+    const ws = list.filter((p) => p.w);
+    if (ws.length) { out.weightEst = Math.max(...ws.map((p) => p.w[0])); out.weightBilled = Math.max(...ws.map((p) => p.w[1])); }
     const withGross = list.filter((p) => p.gross != null);
     const strong = withGross.filter((p) => !p.weak);
     const use = strong.length ? strong : withGross;
@@ -430,6 +519,7 @@
         const t = I.partTotals(parts);
         next = { ...base, payoutParts: parts, actualPayout: t.actualPayout, payoutDate: t.payoutDate || base.payoutDate || today, manualPaid: false };
         if (t.platformFees != null) next.platformFees = t.platformFees;
+        ['shipPaid', 'compGot', 'weightEst', 'weightBilled'].forEach((k) => { if (t[k] != null) next[k] = t[k]; else delete next[k]; });
         if (clean.payoutRef) next.payoutRef = clean.payoutRef;
         if (clean.items && !base.items) next.items = clean.items;             // ชื่อสินค้า (ออเดอร์ที่ยังไม่มีไฟล์ออเดอร์)
         if (clean.itemLines && base.qty == null) next.qty = clean.itemLines; // จำนวนรายการสินค้า
@@ -454,10 +544,17 @@
       .map((a) => A.db.get('otherIncome', `adj:${platform}:${a.ref}:${a.date || 'x'}`)).filter(Boolean);
     if (stale.length) await A.db.putMany('otherIncome', stale.map((x) => ({ ...x, deleted: true })));
     const adj = (built.adjustments || []).concat(orphan).map((a) => ({
-      id: `adj:${platform}:${a.ref}:${a.date || 'x'}`, date: a.date || today, amount: a.amount, category: 'เงินชดเชยจากแพลตฟอร์ม', platform,
+      id: `adj:${platform}:${a.ref}:${a.date || 'x'}`, date: a.date || today, amount: a.amount, category: a.amount < 0 ? 'ปรับปรุงยอดจากแพลตฟอร์ม' : 'เงินชดเชยจากแพลตฟอร์ม', platform,
       note: `${A.PLATFORMS[platform].name} • ${a.type} • ${a.ref}`, source: filename, auto: true, deleted: false,
     }));
     if (adj.length) await A.db.putMany('otherIncome', adj);
+    // ยอดถอนเงินเข้าบัญชีธนาคาร (TikTok) → หน้า "เงินเข้าบัญชีธนาคาร" (เก็บสถานะที่ผู้ใช้ยืนยันไว้)
+    const wds = (built.withdrawals || []).map((w) => {
+      const id = `${platform}:${w.kind}:${w.ref}`;
+      const cur = A.db.get('deposits', id) || {};
+      return { ...cur, id, kind: w.kind, platform, ref: w.ref, date: w.date, amount: w.amount, status: w.status, source: filename };
+    });
+    if (wds.length) await A.db.putMany('deposits', wds);
     await A.db.put('imports', { at: Date.now(), filename, platform, report, rows: built.rowCount, orders: recs.length, items: built.itemCount, created, updated, skipped: built.skipped, adjustments: adj.length });
     return { created, updated, total: recs.length, items: built.itemCount, adjustments: adj.length };
   };

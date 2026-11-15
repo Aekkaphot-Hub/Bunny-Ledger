@@ -49,6 +49,8 @@
     incomeCategories: ['ขายหน้าร้าน', 'โอนตรง', 'ดอกเบี้ย/อื่นๆ'],
     shops: [],
     // ภาษีมูลค่าเพิ่ม: ต้องจด VAT ภายใน 30 วันเมื่อรายรับเกิน 1.8 ล้านบาท/ปี • อัตรา 7% (ขยายถึง 30 ก.ย. 2570)
+    // ต้นทุนสินค้า: onReturn = นับต้นทุนของออเดอร์ที่คืนสินค้า/คืนเงินด้วย (ปกติของกลับเข้าสต็อก จึงไม่นับ)
+    cost: { onReturn: false },
     vat: { registered: false, since: '', rate: 0.07, threshold: 1800000, priceIncludesVat: true, countOtherIncome: true, feesHaveInvoice: true, efiling: true },
   };
 
@@ -62,9 +64,12 @@
     { key: 'income', title: 'รายรับ', tone: 'blue', items: [
       { id: 'receivables', icon: 'moneybag', label: '1. ลูกหนี้แพลตฟอร์ม', desc: 'เงินที่ยังไม่โอนเข้า', badge: 'receivables' },
       { id: 'tracking', icon: 'parcel', label: '2. ติดตามออเดอร์', desc: 'พัสดุถึงมือลูกค้าหรือยัง', badge: 'tracking' },
+      { id: 'claims', icon: 'alert', label: '3. ออเดอร์มีปัญหา & เคลม', desc: 'ค่าส่งเกิน ตีกลับ ติดตามเงินคืน', badge: 'claims' },
+      { id: 'bank', icon: 'bank', label: '4. เงินเข้าบัญชีธนาคาร', desc: 'เช็กว่าเงินถึงบัญชีจริง', badge: 'bank' },
       { id: 'income', icon: 'plusCoin', label: 'รายรับอื่นๆ', desc: 'รายได้นอกแพลตฟอร์ม' },
     ] },
     { key: 'expense', title: 'รายจ่าย', tone: 'pink', items: [
+      { id: 'costs', icon: 'box', label: 'ต้นทุน & กำไรจริง', desc: 'ต้นทุนสินค้า กำไรต่อออเดอร์' },
       { id: 'expenses', icon: 'receipt', label: 'บันทึกรายจ่าย', desc: 'ค่าของ ค่าแพ็ก ค่าแอด' },
       { id: 'fees', icon: 'tag', label: 'ค่าธรรมเนียมแพลตฟอร์ม', desc: 'ค่าคอมที่ถูกหัก' },
     ] },

@@ -28,6 +28,9 @@
       const fileOn = A.filestore && A.filestore.status().state !== 'off';
       const needBackup = !syncing && !fileOn && A.db.count('orders') > 0 && Date.now() - backupAt > 7 * 864e5;
       const fin = !A.workspace || A.workspace.can('finance'); // พนักงาน: ไม่แสดงกำไร/รายจ่าย และไม่มีหน้าย้อนหลัง
+      const costOn = A.costing && A.costing.active();
+      const claimsN = A.claimsLib ? A.claimsLib.badge() : 0;
+      const bankN = fin && A.bankLib ? A.bankLib.badge() : 0;
       const h = (href) => (fin ? href : null);
       // เตือนเกณฑ์จด VAT 1.8 ล้าน (ถึง 80% / เกินแล้วแต่ยังไม่ได้ตั้งค่าว่าจด)
       const vt = fin && A.vat && !st.vat.registered ? A.vat.threshold(t.slice(0, 4)) : null;
@@ -38,12 +41,14 @@
       el.innerHTML = `
         ${A.demo.has() && (!A.workspace || A.workspace.can('demo')) ? `<div class="notice pink">${A.icon('sparkle')}<div>ตอนนี้มี <b>ข้อมูลตัวอย่าง</b> อยู่ — ลบได้ที่หน้า <a href="#/settings">ตั้งค่า</a> เมื่อพร้อมใช้ข้อมูลจริง</div></div><div class="mt-s"></div>` : ''}
         ${vatNotice}
+        ${claimsN ? `<div class="notice warn">${A.icon('alert')}<div><b>${claimsN} ออเดอร์</b> โดนเก็บค่าส่งเกิน/น้ำหนักเกิน หรือตีกลับโดนหักค่าส่ง ใน 45 วันล่าสุด — <a href="#/claims">ตรวจและยื่นเคลม</a></div></div><div class="mt-s"></div>` : ''}
+        ${bankN ? `<div class="notice">${A.icon('bank')}<div>มีรอบโอนเงิน <b>${bankN} รอบ</b> ที่ยังไม่ได้ยืนยันว่าถึงบัญชีธนาคาร — <a href="#/bank">เช็กกับบัญชีธนาคาร</a></div></div><div class="mt-s"></div>` : ''}
         ${needBackup ? `<div class="notice warn">${A.icon('alert')}<div>ข้อมูลยังเก็บอยู่ในแอปอย่างเดียว — <a href="#/backup">ตั้งให้บันทึกลงไฟล์บนคอมอัตโนมัติ</a> หรือดาวน์โหลดไฟล์สำรองเก็บไว้ กันข้อมูลหายนะ</div></div><div class="mt-s"></div>` : ''}
         <div class="kpis">
           ${ui.kpi({ label: 'ยอดขายวันนี้ (ส่งแล้ว)', value: U.money(day.sales), foot: `ส่ง ${U.num(day.orders)} ออเดอร์ • ${ui.delta(day.sales, yday.sales)} จากเมื่อวาน`, icon: 'heart', tone: 'pink', href: h('#/history?gran=day') })}
           ${ui.kpi({ label: 'ยอดขายสัปดาห์นี้', value: U.money(week.sales), foot: `${U.num(week.orders)} ออเดอร์ • ${ui.delta(week.sales, lastWeek.sales)}`, icon: 'calendar', tone: 'blue', href: h('#/history?gran=week') })}
           ${ui.kpi({ label: 'ยอดขายเดือนนี้', value: U.money(month.sales), foot: `${U.num(month.orders)} ออเดอร์`, icon: 'pie', tone: 'mint', href: h('#/history?gran=month') })}
-          ${!fin ? '' : ui.kpi({ label: 'กำไรเบื้องต้นเดือนนี้', value: U.money(month.profit), foot: `หักค่าธรรมเนียม ${U.money0(month.fees)} • รายจ่าย ${U.money0(month.expenses)}`, icon: 'sparkle', tone: 'butter', href: '#/reports' })}
+          ${!fin ? '' : ui.kpi({ label: costOn ? 'กำไรเดือนนี้ (หักต้นทุนแล้ว)' : 'กำไรเบื้องต้นเดือนนี้', value: U.money(month.profit), foot: costOn ? `ต้นทุนสินค้า ${U.money0(month.cogs)} • ค่าธรรมเนียม ${U.money0(month.fees)}${month.cogsMissing ? ` • <span class="delta-down">ขาดต้นทุน ${month.cogsMissing} ออเดอร์</span>` : ''}` : `หักค่าธรรมเนียม ${U.money0(month.fees)} • รายจ่าย ${U.money0(month.expenses)} • <a href="#/costs">ตั้งต้นทุนสินค้า</a>`, icon: 'sparkle', tone: 'butter', href: costOn ? '#/costs' : '#/reports' })}
           ${ui.kpi({ label: 'เงินรอเข้า (ลูกหนี้แพลตฟอร์ม)', value: U.money(U.sum(rec, (r) => r.amount)), foot: overdue.length ? `<span class="delta-down">เกินกำหนด ${overdue.length} ออเดอร์</span>` : `${rec.length} ออเดอร์ ยังไม่เกินกำหนด`, icon: 'moneybag', tone: 'blue', href: '#/receivables' })}
           ${ui.kpi({ label: 'พัสดุเกินกำหนดยังไม่ได้รับ', value: U.num(trk.notReceived.length) + ' ชิ้น', foot: `กำลังจัดส่ง ${trk.shipping.length} • ค้างส่ง ${lateShip.length}`, icon: 'truck', tone: trk.notReceived.length ? 'pink' : 'mint', href: '#/tracking?tab=notReceived' })}
           ${ui.kpi({ label: 'ออเดอร์รอจัดส่ง', value: U.num(trk.pendingShip.length), foot: lateShip.length ? `<span class="delta-down">เกิน ${st.shipLateDays} วัน ${lateShip.length} ออเดอร์</span>` : 'ไม่มีค้างนาน', icon: 'parcel', tone: 'butter', href: '#/tracking?tab=pendingShip' })}

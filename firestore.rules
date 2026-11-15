@@ -12,7 +12,7 @@ service cloud.firestore {
     function myEmail() { return request.auth.token.email.lower(); }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
     function isDataCollection(c) {
-      return c in ['orders', 'expenses', 'otherIncome', 'imports', 'settings', 'templates'];
+      return c in ['orders', 'expenses', 'otherIncome', 'imports', 'settings', 'templates', 'products', 'deposits'];
     }
     // บทบาทของผู้ใช้ในร้านของคนอื่น ('' = ไม่ใช่สมาชิก)
     function roleIn(uid, shopId) {
