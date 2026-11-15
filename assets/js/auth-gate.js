@@ -75,7 +75,7 @@
         if (mode === 'signup') await A.sync.signUp(email, pw); else await A.sync.signIn(email, pw);
         U.lsSet(SKIP_KEY, false);
         close();
-        A.ui.toast(mode === 'signup' ? 'สร้างบัญชีแล้ว กำลังซิงก์ข้อมูล…' : 'เข้าสู่ระบบแล้ว กำลังซิงก์ข้อมูล…', 'ok');
+        A.ui.toast(mode === 'signup' ? 'สร้างบัญชีแล้ว — ส่งอีเมลยืนยันไปให้แล้ว (ใช้ร้านของคุณได้ทันที)' : 'เข้าสู่ระบบแล้ว กำลังซิงก์ข้อมูล…', 'ok');
       } catch (ex) {
         try { sessionStorage.removeItem('bunny.openPicker'); } catch (e) { /* ignore */ }
         showErr(ex.message);

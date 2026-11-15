@@ -201,7 +201,7 @@
     'auth/operation-not-allowed': 'ยังไม่ได้เปิด Email/Password ใน Firebase Authentication',
     'auth/network-request-failed': 'เชื่อมต่ออินเทอร์เน็ตไม่ได้',
     'auth/unauthorized-domain': `ต้องเพิ่ม ${location.hostname} ใน Firebase → Authentication → Settings → Authorized domains`,
-    'auth/admin-restricted-operation': 'ร้านนี้ปิดการสมัครบัญชีใหม่ไว้ — ให้เจ้าของร้านเป็นผู้สร้างบัญชี',
+    'auth/admin-restricted-operation': 'Firebase ของร้านนี้ปิดการสมัครบัญชีใหม่อยู่ — เจ้าของร้านเปิดได้ที่ Firebase Console → Authentication → Settings → User actions → ติ๊ก "Enable create (sign-up)" → Save',
     'auth/too-many-requests': 'ลองผิดหลายครั้งเกินไป รอสักครู่แล้วลองใหม่',
     'auth/missing-email': 'กรอกอีเมลก่อน',
     'auth/user-disabled': 'บัญชีนี้ถูกปิดใช้งาน',
@@ -263,7 +263,18 @@
       }
     },
     async signIn(email, pw) { if (!auth) throw new Error('ยังเชื่อมต่อ Firebase ไม่ได้ (ตรวจอินเทอร์เน็ต)'); try { await auth.signInWithEmailAndPassword(email, pw); } catch (e) { throw new Error(thErr(e)); } },
-    async signUp(email, pw) { if (!auth) throw new Error('ยังเชื่อมต่อ Firebase ไม่ได้ (ตรวจอินเทอร์เน็ต)'); try { await auth.createUserWithEmailAndPassword(email, pw); } catch (e) { throw new Error(thErr(e)); } },
+    async signUp(email, pw) {
+      if (!auth) throw new Error('ยังเชื่อมต่อ Firebase ไม่ได้ (ตรวจอินเทอร์เน็ต)');
+      let cred;
+      try { cred = await auth.createUserWithEmailAndPassword(email, pw); } catch (e) { throw new Error(thErr(e)); }
+      // ส่งอีเมลยืนยัน (ใช้ร้านของตัวเองได้ทันที — ยืนยันเมื่อจะเข้าร้านที่ได้รับเชิญ)
+      try { auth.languageCode = 'th'; await cred.user.sendEmailVerification(); } catch (e) { console.warn('verify email', e); }
+    },
+    /* อีเมลยืนยันแล้วหรือยัง (บัญชีที่ไม่มีอีเมล ถือว่าไม่เกี่ยว) */
+    verified: () => { const u = auth && auth.currentUser; return !u || !u.email || !!u.emailVerified; },
+    async sendVerify() { const u = auth && auth.currentUser; if (!u) throw new Error('ต้องเข้าสู่ระบบก่อน'); try { auth.languageCode = 'th'; await u.sendEmailVerification(); } catch (e) { throw new Error(thErr(e)); } },
+    /* หลังกดลิงก์ยืนยันในอีเมล: โหลดสถานะบัญชีใหม่ + ขอสิทธิ์ใหม่จาก Firebase */
+    async refreshUser() { const u = auth && auth.currentUser; if (!u) return false; await u.reload(); await auth.currentUser.getIdToken(true); return !!auth.currentUser.emailVerified; },
     async resetPassword(email) { if (!auth) throw new Error('ยังเชื่อมต่อ Firebase ไม่ได้'); try { auth.languageCode = 'th'; await auth.sendPasswordResetEmail(email); } catch (e) { throw new Error(thErr(e)); } },
     /* wipe: ล้างข้อมูลในเครื่องนี้ด้วย (ใช้กับเครื่องที่ใช้ร่วมกัน) — ข้อมูลบนคลาวด์ยังอยู่ */
     async signOut({ wipe = false } = {}) {

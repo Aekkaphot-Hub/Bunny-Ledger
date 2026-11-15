@@ -117,8 +117,15 @@
     if (!own.some((x) => x.id === MAIN)) own.push({ id: MAIN, name: ws.isMain() ? A.settings().shopName : 'ร้านแรก', createdAt: 0 });
     own.sort((a, b) => (a.id === MAIN ? -1 : b.id === MAIN ? 1 : (a.createdAt || 0) - (b.createdAt || 0)));
     own = own.map((x) => ({ id: x.id, name: x.name, createdAt: x.createdAt, owner: u.uid, role: 'owner', members: x.members || {} }));
-    // ร้านที่ได้รับเชิญ (ถ้ากฎยังเป็นฉบับเก่าจะอ่านไม่ได้ — ข้ามไป)
+    // ร้านที่ได้รับเชิญ (ถ้ากฎยังเป็นฉบับเก่าจะอ่านไม่ได้ — ข้ามไป) • ต้องยืนยันอีเมลก่อน
     let shared = [];
+    ws.unverified = !!(u.email && !u.emailVerified);
+    if (ws.unverified) {
+      // ยังยืนยันอีเมลไม่ได้ → ไม่รู้รายชื่อร้านที่เชิญ อย่าลบสำเนาในเครื่อง / อย่าพาออกจากร้าน
+      U.lsSet(LIST_KEY(u.uid), [...own, ...ws.cached(u.uid).filter((x) => x.shared)]);
+      if (ws.isShared()) A.ui.toast('ร้านนี้ต้องยืนยันอีเมลก่อนจึงจะซิงก์ได้ — เปิดหน้าต่างเปลี่ยนร้านเพื่อส่งอีเมลยืนยัน', 'err');
+      return own;
+    }
     if (u.email) {
       try {
         const snap = await invitesCol(u.email).get();
@@ -266,7 +273,7 @@
           <div class="field" style="flex:1;min-width:120px"><label>สิทธิ์</label>${roleSel('staff', 'id="team-role"')}</div>
           <button class="btn blue" id="team-add">${A.icon('plus')} เชิญ</button>
         </div>
-        <p class="small muted mt-s">${A.icon('info')} ถ้าปิดการสมัครบัญชีใหม่ไว้ ให้สร้างบัญชีให้เขาก่อนที่ Firebase Console → Authentication → Users → Add user (ใช้อีเมลเดียวกับที่เชิญ)</p>`;
+        <p class="small muted mt-s">${A.icon('info')} ให้เขาสมัครบัญชีในแอปด้วยอีเมลที่เชิญ แล้วกดลิงก์ยืนยันในอีเมล — ร้านนี้จะขึ้นในหน้าต่างเลือกร้านของเขา</p>`;
       const add = box.querySelector('#team-add');
       add.onclick = async () => {
         add.disabled = true;
@@ -321,9 +328,13 @@
       if (!box.isConnected) return;
       const own = list.filter((s) => !s.shared), shared = list.filter((s) => s.shared);
       box.innerHTML = `${err ? `<div class="notice warn">${A.icon('alert')}<div>${U.esc(err)}</div></div>` : ''}
+        ${ws.unverified ? `<div class="notice">${A.icon('info')}<div><b>ยืนยันอีเมลก่อน เพื่อเปิดร้านที่ได้รับเชิญ</b> — เปิดอีเมล ${U.esc(A.sync.user().email)} แล้วกดลิงก์ยืนยันจาก Firebase (ดูในจดหมายขยะด้วย) ร้านของคุณเองใช้ได้ตามปกติ<div class="row mt-s"><button class="btn sm" id="v-done">${A.icon('refresh')} ยืนยันแล้ว — โหลดใหม่</button><button class="btn ghost sm" id="v-send">${A.icon('upload')} ส่งอีเมลยืนยันอีกครั้ง</button></div></div></div>` : ''}
         <div class="small muted" style="margin:10px 0 4px">ร้านของฉัน</div>
         <div class="shop-list" style="margin-top:0">${own.map(item).join('') || '<p class="muted">ยังไม่มีร้าน</p>'}</div>
         ${shared.length ? `<div class="small muted" style="margin:10px 0 4px">ร้านที่ได้รับเชิญ</div><div class="shop-list" style="margin-top:0">${shared.map(item).join('')}</div>` : ''}`;
+      const vd = box.querySelector('#v-done'), vs = box.querySelector('#v-send');
+      if (vd) vd.onclick = async () => { vd.disabled = true; try { const ok = await A.sync.refreshUser(); A.ui.toast(ok ? 'ยืนยันอีเมลแล้ว' : 'ยังไม่ได้ยืนยัน — กดลิงก์ในอีเมลก่อนนะ', ok ? 'ok' : 'err'); load(); } catch (e) { A.ui.toast(e.message, 'err'); vd.disabled = false; } };
+      if (vs) vs.onclick = async () => { vs.disabled = true; try { await A.sync.sendVerify(); A.ui.toast('ส่งอีเมลยืนยันแล้ว', 'ok'); } catch (e) { A.ui.toast(e.message, 'err'); vs.disabled = false; } };
       const find = (k) => list.find((x) => keyOf(x) === k);
       box.querySelectorAll('[data-open]').forEach((b) => { b.onclick = () => { m.close(); ws.switchTo(find(b.dataset.open)); }; });
       box.querySelectorAll('[data-hide]').forEach((b) => {

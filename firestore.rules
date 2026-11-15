@@ -10,6 +10,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function myEmail() { return request.auth.token.email.lower(); }
+    // เปิดสมัครบัญชีเองได้ → สิทธิ์ที่ผูกกับอีเมล (ร้านที่ได้รับเชิญ) ใช้ได้เฉพาะอีเมลที่ยืนยันแล้ว กันคนสมัครด้วยอีเมลของคนอื่น
+    function verified() { return signedIn() && request.auth.token.email != null && request.auth.token.email_verified == true; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
     function isDataCollection(c) {
       return c in ['orders', 'expenses', 'otherIncome', 'imports', 'settings', 'templates', 'products', 'deposits'];
@@ -20,7 +22,7 @@ service cloud.firestore {
       return exists(path) ? get(path).data.get('members', {}).get(myEmail(), '') : '';
     }
     function memberCan(uid, shopId, c, write) {
-      return signedIn() && request.auth.token.email != null && isDataCollection(c)
+      return verified() && isDataCollection(c)
         && (roleIn(uid, shopId) == 'manager'
           || (roleIn(uid, shopId) == 'staff'
             && c in (write ? ['orders', 'imports', 'templates', 'otherIncome'] : ['orders', 'imports', 'templates', 'settings'])));
@@ -32,7 +34,7 @@ service cloud.firestore {
     }
     match /users/{uid}/shops/{shopId} {
       allow read: if isOwner(uid)
-        || (signedIn() && request.auth.token.email != null && resource.data.get('members', {}).get(myEmail(), '') != '');
+        || (verified() && resource.data.get('members', {}).get(myEmail(), '') != '');
       allow write: if isOwner(uid);
       match /{collection}/{docId} {
         allow read: if (isOwner(uid) && isDataCollection(collection)) || memberCan(uid, shopId, collection, false);
@@ -40,7 +42,7 @@ service cloud.firestore {
       }
     }
     match /invites/{email}/shops/{inviteId} {
-      allow read: if signedIn() && request.auth.token.email != null && myEmail() == email;
+      allow read: if verified() && myEmail() == email;
       allow read, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
       allow create, update: if signedIn() && request.resource.data.ownerUid == request.auth.uid
         && inviteId.matches(request.auth.uid + '_.+');
