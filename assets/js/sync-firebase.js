@@ -71,7 +71,7 @@
     return fresh.length;
   }
   /* ข้อมูลชุดใหม่ (ต้นทุน / เงินเข้าธนาคาร) ต้องอัปเดตกฎ firestore.rules ก่อน — ถ้ายังไม่อัปเดต ข้ามไปก่อน ไม่ให้ซิงก์ทั้งหมดล้ม */
-  const NEW_STORES = ['products', 'deposits'];
+  const NEW_STORES = ['products', 'deposits', 'invoices'];
   const blocked = new Set();
   const denied = (e) => e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
   const guard = async (s, fn) => {

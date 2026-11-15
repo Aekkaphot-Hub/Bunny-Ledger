@@ -31,6 +31,7 @@
       const costOn = A.costing && A.costing.active();
       const claimsN = A.claimsLib ? A.claimsLib.badge() : 0;
       const bankN = fin && A.bankLib ? A.bankLib.badge() : 0;
+      const taxAl = fin && A.taxCal ? A.taxCal.alerts() : [];
       const h = (href) => (fin ? href : null);
       // เตือนเกณฑ์จด VAT 1.8 ล้าน (ถึง 80% / เกินแล้วแต่ยังไม่ได้ตั้งค่าว่าจด)
       const vt = fin && A.vat && !st.vat.registered ? A.vat.threshold(t.slice(0, 4)) : null;
@@ -41,6 +42,7 @@
       el.innerHTML = `
         ${A.demo.has() && (!A.workspace || A.workspace.can('demo')) ? `<div class="notice pink">${A.icon('sparkle')}<div>ตอนนี้มี <b>ข้อมูลตัวอย่าง</b> อยู่ — ลบได้ที่หน้า <a href="#/settings">ตั้งค่า</a> เมื่อพร้อมใช้ข้อมูลจริง</div></div><div class="mt-s"></div>` : ''}
         ${vatNotice}
+        ${taxAl.length ? `<div class="notice ${taxAl.some((e) => e.state === 'overdue') ? 'red' : 'warn'}">${A.icon('clock')}<div><b>ภาษีที่ต้องยื่น</b> — ${taxAl.slice(0, 3).map((e) => `${U.esc(e.title)} ${e.state === 'overdue' ? `<b>เลยกำหนด ${-e.days} วัน</b>` : e.days === 0 ? '<b>วันนี้</b>' : `ภายใน ${U.thDate(e.date)} (อีก ${e.days} วัน)`}`).join(' • ')}${taxAl.length > 3 ? ` และอีก ${taxAl.length - 3} รายการ` : ''} • <a href="#/taxcal">ดูปฏิทินภาษี</a></div></div><div class="mt-s"></div>` : ''}
         ${claimsN ? `<div class="notice warn">${A.icon('alert')}<div><b>${claimsN} ออเดอร์</b> โดนเก็บค่าส่งเกิน/น้ำหนักเกิน หรือตีกลับโดนหักค่าส่ง ใน 45 วันล่าสุด — <a href="#/claims">ตรวจและยื่นเคลม</a></div></div><div class="mt-s"></div>` : ''}
         ${bankN ? `<div class="notice">${A.icon('bank')}<div>มีรอบโอนเงิน <b>${bankN} รอบ</b> ที่ยังไม่ได้ยืนยันว่าถึงบัญชีธนาคาร — <a href="#/bank">เช็กกับบัญชีธนาคาร</a></div></div><div class="mt-s"></div>` : ''}
         ${needBackup ? `<div class="notice warn">${A.icon('alert')}<div>ข้อมูลยังเก็บอยู่ในแอปอย่างเดียว — <a href="#/backup">ตั้งให้บันทึกลงไฟล์บนคอมอัตโนมัติ</a> หรือดาวน์โหลดไฟล์สำรองเก็บไว้ กันข้อมูลหายนะ</div></div><div class="mt-s"></div>` : ''}

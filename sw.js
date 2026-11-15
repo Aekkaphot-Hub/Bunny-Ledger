@@ -2,7 +2,7 @@
    - ไฟล์ของแอปเอง: ลองโหลดใหม่จากเซิร์ฟเวอร์ก่อน (ได้เวอร์ชันล่าสุด) ถ้าไม่ได้ใช้ของในแคช
    - ไลบรารีจาก CDN (ล็อกเวอร์ชันแล้ว) และฟอนต์: ใช้ของในแคชก่อน
    - ข้อมูลบัญชี / Firestore: ไม่ผ่านแคชนี้เด็ดขาด */
-const VERSION = 'bunny-ledger-v15';
+const VERSION = 'bunny-ledger-v16';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/css/app.css',
@@ -17,6 +17,9 @@ const APP_FILES = [
   'assets/js/pages/costs.js',
   'assets/js/pages/claims.js',
   'assets/js/pages/bank.js',
+  'assets/js/pages/incometax.js',
+  'assets/js/pages/taxcal.js',
+  'assets/js/pages/invoices.js',
   'assets/js/pages/verify.js', 'assets/js/pages/vat.js', 'assets/js/pages/reports.js', 'assets/js/pages/account.js', 'assets/js/auth-gate.js', 'assets/js/pages/backup.js', 'assets/js/pages/settings.js',
   'assets/js/app.js',
 ];

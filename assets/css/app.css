@@ -455,3 +455,29 @@ code { background: var(--cream-2); border-radius: 6px; padding: 1px 6px; font-si
 .vat-form .check { white-space: normal; align-items: flex-start; line-height: 1.45; }
 .vat-form .check input { margin-top: 3px; flex: none; }
 .grid > * { min-width: 0; }
+
+/* ---------- ใบกำกับภาษี (พิมพ์ / บันทึกเป็น PDF) ---------- */
+#print-root { display: none; }
+@media print {
+  body.printing > *:not(#print-root) { display: none !important; }
+  body.printing #print-root { display: block; }
+  body.printing { background: #fff !important; }
+  @page { size: A4; margin: 14mm; }
+}
+.inv { position: relative; color: #222; font-size: 12.5pt; line-height: 1.45; font-family: var(--font-body, sans-serif); }
+.inv.abb { max-width: 120mm; margin: 0 auto; }
+.inv .inv-head { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #222; padding-bottom: 8px; margin-bottom: 10px; }
+.inv .inv-head .right { text-align: right; }
+.inv h1 { font-size: 18pt; margin: 0 0 4px; }
+.inv .seller { font-size: 14pt; }
+.inv .buyer { border: 1px solid #999; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; }
+.inv table { width: 100%; border-collapse: collapse; }
+.inv th, .inv td { border-bottom: 1px solid #ccc; padding: 4px 6px; text-align: left; vertical-align: top; }
+.inv .n { text-align: right; white-space: nowrap; }
+.inv .sum { margin: 10px 0 0 auto; max-width: 340px; }
+.inv .sum > div { display: flex; justify-content: space-between; gap: 12px; }
+.inv .sum .total { border-top: 2px solid #222; margin-top: 4px; padding-top: 4px; font-size: 13.5pt; }
+.inv .muted { color: #666; }
+.inv .sign { display: flex; justify-content: space-between; margin-top: 40px; }
+.inv .void { position: absolute; top: 35%; left: 20%; font-size: 64pt; color: rgba(200,0,0,.25); transform: rotate(-20deg); font-weight: bold; }
+.page-break { page-break-after: always; break-after: page; height: 0; }

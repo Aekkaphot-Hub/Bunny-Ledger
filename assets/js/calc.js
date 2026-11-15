@@ -142,6 +142,7 @@
       receivables: r, tracking: t.notReceived.length + t.pendingShip.filter((x) => x.late).length,
       claims: A.claimsLib ? safe(A.claimsLib.badge) : 0,
       bank: A.bankLib && (!A.workspace || A.workspace.canPage('bank')) ? safe(A.bankLib.badge) : 0,
+      taxcal: A.taxCal && (!A.workspace || A.workspace.canPage('taxcal')) ? safe(A.taxCal.badge) : 0,
     };
   };
 

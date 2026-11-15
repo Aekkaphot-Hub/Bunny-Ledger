@@ -14,7 +14,7 @@ service cloud.firestore {
     function verified() { return signedIn() && request.auth.token.email != null && request.auth.token.email_verified == true; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
     function isDataCollection(c) {
-      return c in ['orders', 'expenses', 'otherIncome', 'imports', 'settings', 'templates', 'products', 'deposits'];
+      return c in ['orders', 'expenses', 'otherIncome', 'imports', 'settings', 'templates', 'products', 'deposits', 'invoices'];
     }
     // บทบาทของผู้ใช้ในร้านของคนอื่น ('' = ไม่ใช่สมาชิก)
     function roleIn(uid, shopId) {

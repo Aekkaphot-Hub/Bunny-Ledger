@@ -51,6 +51,10 @@
     // ภาษีมูลค่าเพิ่ม: ต้องจด VAT ภายใน 30 วันเมื่อรายรับเกิน 1.8 ล้านบาท/ปี • อัตรา 7% (ขยายถึง 30 ก.ย. 2570)
     // ต้นทุนสินค้า: onReturn = นับต้นทุนของออเดอร์ที่คืนสินค้า/คืนเงินด้วย (ปกติของกลับเข้าสต็อก จึงไม่นับ)
     cost: { onReturn: false },
+    // ภาษีเงินได้ + ปฏิทินภาษี (done = รายการที่กดว่ายื่นแล้ว)
+    tax: { otherAllowance: 0, socialSecurity: 0, withheld: 0, paid94: null, done: {} },
+    // ข้อมูลผู้ขายบนใบกำกับภาษี
+    invoice: { sellerName: '', taxId: '', branch: 'สำนักงานใหญ่', address: '', phone: '', abbPrefix: 'ABB', fullPrefix: 'INV' },
     vat: { registered: false, since: '', rate: 0.07, threshold: 1800000, priceIncludesVat: true, countOtherIncome: true, feesHaveInvoice: true, efiling: true },
   };
 
@@ -76,9 +80,12 @@
     { key: 'tools', title: 'เครื่องมือ', tone: 'mint', items: [
       { id: 'verify', icon: 'search', label: 'อ้างอิงข้อมูล', desc: 'เทียบยอดกับไฟล์จริง' },
       { id: 'vat', icon: 'percent', label: 'คำนวณภาษี VAT', desc: 'เกณฑ์ 1.8 ล้าน & ภาษีรายเดือน' },
+      { id: 'incometax', icon: 'wallet', label: 'ประมาณภาษีเงินได้', desc: 'ภ.ง.ด.94 / 90 เหมา 60% หรือจริง' },
+      { id: 'taxcal', icon: 'clock', label: 'ปฏิทินภาษี', desc: 'วันยื่นภาษี & แจ้งเตือน', badge: 'taxcal' },
     ] },
     { key: 'docs', title: 'เอกสาร', tone: 'blue', items: [
       { id: 'reports', icon: 'pie', label: 'รายงาน & Excel', desc: 'สรุปเป็นไฟล์ Excel' },
+      { id: 'invoices', icon: 'file', label: 'ใบกำกับภาษี', desc: 'อย่างย่อ / เต็มรูป + รายงานภาษีขาย' },
       { id: 'backup', icon: 'archive', label: 'ไฟล์ข้อมูล & สำรอง', desc: 'บันทึกลงไฟล์บนคอมอัตโนมัติ' },
       { id: 'settings', icon: 'gear', label: 'ตั้งค่า', desc: 'ปรับร้านและการแจ้งเตือน' },
     ] },
