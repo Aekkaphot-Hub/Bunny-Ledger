@@ -17,7 +17,8 @@
     ['fees', 'ค่าธรรมเนียมแพลตฟอร์ม'],
   ];
 
-  const toDate = (s) => (s ? U.parseYmd(s) : null);
+  // ExcelJS เขียนวันที่แบบ UTC → ต้องใช้เที่ยงคืน UTC ไม่อย่างนั้น Excel จะแสดงเป็นวันก่อนหน้า (เวลาไทย +7)
+  const toDate = (s) => { if (!s) return null; const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return y && m && d ? new Date(Date.UTC(y, m - 1, d)) : null; };
   const colLetter = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
 
   /* cols: [{h, w, t:'money'|'int'|'date'|'text'|'pct', v(row)}] */
@@ -132,7 +133,8 @@
         { h: 'ออเดอร์', w: 18, t: 'int', v: (r) => r.orders },
         { h: 'ยอดขาย', w: 16, t: 'money', v: (r) => U.round2(r.sales) },
         { h: 'ค่าธรรมเนียม', w: 16, t: 'money', v: (r) => U.round2(r.fees) },
-        { h: 'เงินเข้าจริง', w: 16, t: 'money', v: (r) => U.round2(r.received) },
+        { h: 'เงินเข้า 1', w: 16, t: 'money', v: (r) => U.round2(r.paid1) },
+        { h: 'เงินเข้า 2', w: 16, t: 'money', v: (r) => U.round2(r.paid2) },
         { h: 'รอเงินเข้า', w: 16, t: 'money', v: (r) => U.round2(r.pending) },
       ], pfRows, { fill: BLUE, title: 'แยกตามแพลตฟอร์ม' });
       const pies = S.pies(from, to, f);
@@ -178,7 +180,7 @@
         { h: 'จำนวน', w: 8, t: 'int', v: (o) => o.qty || 0 },
         { h: 'สถานะ', w: 14, t: 'text', v: (o) => (A.STATUS[o.status] || {}).label || '' },
         { h: 'ยอดขาย', t: 'money', v: (o) => (A.isVoid(o.status) ? 0 : o.grossSales || 0) },
-        { h: 'ค่าธรรมเนียม', t: 'money', v: (o) => (A.isVoid(o.status) ? 0 : U.round2(C.fees(o, st))) },
+        { h: 'ค่าธรรมเนียม', t: 'money', v: (o) => (A.isVoid(o.status) ? (o.actualPayout < 0 ? U.round2(-o.actualPayout) : 0) : U.round2(C.fees(o, st))) },
         { h: 'ยอดที่ควรได้', t: 'money', v: (o) => (A.isVoid(o.status) ? 0 : U.round2(C.expected(o, st))) },
         { h: 'เงินเข้า 1', t: 'money', v: (o) => U.round2(U.sum(C.payoutParts(o), (p) => p.amount || 0)) },
         { h: 'วันที่เงินเข้า', w: 12, t: 'date', v: (o) => o.payoutDate },
