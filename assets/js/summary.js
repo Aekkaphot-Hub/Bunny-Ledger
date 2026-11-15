@@ -25,7 +25,10 @@
     return out;
   };
 
-  const blank = () => ({ sales: 0, orders: 0, fees: 0, received: 0, receivedCount: 0, pending: 0, expenses: 0, otherIncome: 0, voided: 0, qty: 0 });
+  // วันที่ของออเดอร์ = วันที่ส่ง (ออเดอร์ยกเลิก/คืนที่ไม่มีวันส่ง ใช้วันที่สั่ง)
+  S.dayOf = (o) => (A.isVoid(o.status) ? A.calc.saleDate(o) || o.orderDate : A.calc.saleDate(o));
+
+  const blank = () => ({ sales: 0, orders: 0, fees: 0, received: 0, receivedCount: 0, paid1: 0, paid1Count: 0, paid2: 0, paid2Count: 0, pending: 0, expenses: 0, otherIncome: 0, voided: 0, qty: 0 });
   const pfOk = (f, p) => !f.platform || f.platform === p;
   const shopOk = (f, s) => !f.shop || f.shop === s;
 
@@ -55,7 +58,19 @@
         b.fees += A.calc.fees(o, st);
         if (!A.calc.isPaid(o)) b.pending += A.calc.expected(o, st);
       });
-      A.calc.payoutParts(o).forEach((p) => add(p.date, (b) => { b.received += p.amount || 0; b.receivedCount++; }));
+      const parts = A.calc.payoutParts(o);
+      parts.forEach((p) => add(p.date, (b) => { b.received += p.amount || 0; b.receivedCount++; }));
+      if (!parts.length) return;
+      // เงินเข้า 1 = เงินของออเดอร์ที่ส่งในช่วงนั้น (ไม่ว่าเงินจะเข้าวันไหน)
+      // เงินเข้า 2 = เงินที่เข้าในช่วงนั้น แต่เป็นของออเดอร์ที่ส่งช่วงอื่น
+      const d = S.dayOf(o);
+      const own = d && d >= from && d <= to ? S.keyOf(gran, d) : null;
+      if (own) add(d, (b) => { b.paid1 += U.sum(parts, (p) => p.amount || 0); b.paid1Count++; });
+      const seen = new Set();
+      parts.forEach((p) => {
+        if (!p.date || S.keyOf(gran, p.date) === own) return;
+        add(p.date, (b) => { b.paid2 += p.amount || 0; if (!seen.has(b.key)) { seen.add(b.key); b.paid2Count++; } });
+      });
     });
     A.db.all('expenses').forEach((e) => {
       if (f.platform && e.platform !== f.platform) return;
@@ -78,11 +93,14 @@
   S.items = (from, to, f = {}) => {
     const inR = (d) => d && d >= from && d <= to;
     const orders = A.db.all('orders').filter((o) => pfOk(f, o.platform) && shopOk(f, o.shop));
-    const day = (o) => (A.isVoid(o.status) ? A.calc.saleDate(o) || o.orderDate : A.calc.saleDate(o));
+    const day = S.dayOf;
+    const payouts = orders.filter((o) => A.calc.payoutParts(o).some((p) => inR(p.date))).sort((a, b) => (b.payoutDate || '').localeCompare(a.payoutDate || ''));
     return {
       // ออเดอร์ของช่วงนี้ = ออเดอร์ที่ "ส่งสินค้า" ในช่วงนี้
       orders: orders.filter((o) => inR(day(o))).sort((a, b) => (day(b) || '').localeCompare(day(a) || '')),
-      payouts: orders.filter((o) => A.calc.payoutParts(o).some((p) => inR(p.date))).sort((a, b) => (b.payoutDate || '').localeCompare(a.payoutDate || '')),
+      payouts,
+      // เงินเข้า 2: เงินที่เข้าช่วงนี้ของออเดอร์ที่ส่งช่วงอื่น
+      payouts2: payouts.filter((o) => !inR(day(o))),
       expenses: A.db.all('expenses').filter((e) => inR(e.date) && (!f.platform || e.platform === f.platform)).sort((a, b) => b.date.localeCompare(a.date)),
       otherIncome: f.platform ? [] : A.db.all('otherIncome').filter((e) => inR(e.date)).sort((a, b) => b.date.localeCompare(a.date)),
     };

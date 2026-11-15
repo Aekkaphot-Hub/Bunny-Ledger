@@ -43,7 +43,8 @@
       <div class="kpis mt">
         ${ui.kpi({ label: 'ยอดขาย', value: U.money(cur.sales), foot: `${U.num(cur.orders)} ออเดอร์ • ${ui.delta(cur.sales, pv.sales)} จาก${unit}ก่อน`, icon: 'heart', tone: 'pink' })}
         ${ui.kpi({ label: 'ค่าธรรมเนียมแพลตฟอร์ม', value: U.money(cur.fees), foot: cur.sales ? `${U.pct(cur.fees / cur.sales)} ของยอดขาย` : '', icon: 'tag', tone: 'butter' })}
-        ${ui.kpi({ label: 'เงินเข้าจริง', value: U.money(cur.received), foot: `${U.num(cur.receivedCount)} ออเดอร์ • ${ui.delta(cur.received, pv.received)}`, icon: 'wallet', tone: 'mint' })}
+        ${ui.kpi({ label: `เงินเข้า 1 • ของออเดอร์ที่ส่ง${unit}นี้`, value: U.money(cur.paid1), foot: `${U.num(cur.paid1Count)} ออเดอร์ • ไม่ว่าเงินจะเข้าวันไหน`, icon: 'wallet', tone: 'mint' })}
+        ${ui.kpi({ label: `เงินเข้า 2 • ของออเดอร์ที่ส่ง${unit}อื่น`, value: U.money(cur.paid2), foot: `${U.num(cur.paid2Count)} ออเดอร์ที่เงินเข้า${unit}นี้ • เงินเข้าบัญชีรวม ${U.money0(cur.received)}`, icon: 'wallet', tone: 'blue' })}
         ${ui.kpi({ label: 'ยังรอเงินเข้า (ของยอดขายช่วงนี้)', value: U.money(cur.pending), icon: 'moneybag', tone: 'blue' })}
         ${ui.kpi({ label: 'รายจ่าย', value: U.money(cur.expenses), foot: ui.delta(cur.expenses, pv.expenses), icon: 'receipt', tone: 'pink' })}
         ${ui.kpi({ label: 'กำไรเบื้องต้น', value: U.money(cur.profit), foot: `${ui.delta(cur.profit, pv.profit)}${cur.otherIncome ? ` • รวมรายรับอื่น ${U.money0(cur.otherIncome)}` : ''}`, icon: 'sparkle', tone: 'mint' })}
@@ -72,7 +73,7 @@
     el.querySelector('#next').onclick = () => { state.anchor = S.shift(state.gran, state.anchor, 1); state.filter = null; draw(el); };
 
     const pies = S.pies(per.from, per.to, f);
-    const setF = (type) => (key) => { state.filter = { type, key }; state.list = type === 'expense' ? 'expenses' : type === 'money' && key === 'paid' ? 'payouts' : 'orders'; drawDetail(el, per, f); el.querySelector('#detail-card').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    const setF = (type) => (key) => { state.filter = { type, key }; state.list = type === 'expense' ? 'expenses' : 'orders'; drawDetail(el, per, f); el.querySelector('#detail-card').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
     A.charts.donut(el.querySelector('#p-sales'), pies.sales, { money: true, center: 'ยอดขาย', onClick: setF('platform') });
     A.charts.donut(el.querySelector('#p-money'), pies.money, { money: true, center: 'ยอดที่ควรได้', onClick: setF('money') });
     A.charts.donut(el.querySelector('#p-fees'), pies.fees, { money: true, center: 'ค่าธรรมเนียม', onClick: setF('platform') });
@@ -131,14 +132,16 @@
         { h: 'ออเดอร์', cls: 'num', v: (r) => U.num(r.orders) },
         { h: 'ยอดขาย', cls: 'num', v: (r) => U.money(r.sales) },
         { h: 'ค่าธรรมเนียม', cls: 'num', v: (r) => U.money(r.fees) },
-        { h: 'เงินเข้าจริง', cls: 'num', v: (r) => U.money(r.received) },
+        { h: 'เงินเข้า 1', cls: 'num', v: (r) => U.money(r.paid1) },
+        { h: 'เงินเข้า 2', cls: 'num', v: (r) => U.money(r.paid2) },
+        { h: 'เงินเข้าบัญชีรวม', cls: 'num', v: (r) => U.money(r.received) },
         { h: 'รอเข้า', cls: 'num', v: (r) => U.money(r.pending) },
         { h: 'รายจ่าย', cls: 'num', v: (r) => U.money(r.expenses) },
         { h: 'กำไรเบื้องต้น', cls: 'num', v: (r) => `<b>${U.money(r.profit)}</b>` },
       ], rows.slice().reverse(), {
         rowCls: (r) => (state.anchor >= r.from && state.anchor <= r.to ? 'sel' : ''),
         onRow: true,
-        foot: (() => { const t = S.total(rows); return [{ v: 'รวม' }, { cls: 'num', v: U.num(t.orders) }, { cls: 'num', v: U.money(t.sales) }, { cls: 'num', v: U.money(t.fees) }, { cls: 'num', v: U.money(t.received) }, { cls: 'num', v: U.money(t.pending) }, { cls: 'num', v: U.money(t.expenses) }, { cls: 'num', v: U.money(t.profit) }]; })(),
+        foot: (() => { const t = S.total(rows); return [{ v: 'รวม' }, { cls: 'num', v: U.num(t.orders) }, { cls: 'num', v: U.money(t.sales) }, { cls: 'num', v: U.money(t.fees) }, { cls: 'num', v: U.money(t.paid1) }, { cls: 'num', v: U.money(t.paid2) }, { cls: 'num', v: U.money(t.received) }, { cls: 'num', v: U.money(t.pending) }, { cls: 'num', v: U.money(t.expenses) }, { cls: 'num', v: U.money(t.profit) }]; })(),
       })}</div>`;
     ui.bindRows(box, rows.slice().reverse(), (r) => { state.anchor = r.from; state.filter = null; draw(el); });
     A.charts.bars(box.querySelector('#trend'), rows.map(lab), [
@@ -155,11 +158,18 @@
     if (!d) return '<span class="muted small">ยังไม่ส่ง</span>';
     return A.calc.saleDateEstimated(o) ? `<span class="muted" title="ไฟล์ไม่มีวันที่ส่ง — ใช้วันที่ได้รับ/วันที่สั่งแทน">${U.thDate(d)}*</span>` : U.thDate(d);
   };
+  // เงินเข้าทั้งหมดของออเดอร์ (ทุกรอบโอน) และวันที่เงินเข้า
+  const paidAll = (o) => U.sum(A.calc.payoutParts(o), (p) => p.amount || 0);
+  const payDays = (o, per) => {
+    const ds = [...new Set(A.calc.payoutParts(o).map((p) => p.date).filter(Boolean))].filter((d) => !per || (d >= per.from && d <= per.to)).sort();
+    if (!ds.length) return '<span class="muted small">–</span>';
+    return ds.map((d) => U.thDate(d)).join(', ');
+  };
   function drawDetail(el, per, f) {
     const box = el.querySelector('#detail-card');
     const it = S.items(per.from, per.to, f);
     const fl = state.filter;
-    let orders = it.orders, payouts = it.payouts, expenses = it.expenses;
+    let orders = it.orders, payouts = it.payouts2, expenses = it.expenses;
     let chip = '';
     if (fl) {
       if (fl.type === 'platform') { orders = orders.filter((o) => o.platform === fl.key); payouts = payouts.filter((o) => o.platform === fl.key); chip = A.PLATFORMS[fl.key].name; }
@@ -168,7 +178,7 @@
       if (fl.type === 'expense') { expenses = expenses.filter((e) => (e.category || 'อื่นๆ') === fl.key); chip = 'หมวด ' + fl.key; }
     }
     const tabs = [
-      ['orders', 'ออเดอร์', orders.length], ['payouts', 'เงินเข้า', payouts.length], ['expenses', 'รายจ่าย', expenses.length], ['income', 'รายรับอื่น', it.otherIncome.length],
+      ['orders', 'ออเดอร์ • เงินเข้า 1', orders.length], ['payouts', 'เงินเข้า 2', payouts.length], ['expenses', 'รายจ่าย', expenses.length], ['income', 'รายรับอื่น', it.otherIncome.length],
     ];
     let table = '';
     if (state.list === 'orders') {
@@ -176,13 +186,14 @@
         { h: 'วันที่ส่ง', v: (o) => dayCell(o) }, { h: 'แพลตฟอร์ม', v: (o) => ui.pf(o.platform) }, { h: 'เลขคำสั่งซื้อ', v: (o) => U.esc(o.orderNo) },
         { h: 'สินค้า', cls: 'ell', v: (o) => U.esc(o.items || '–') }, { h: 'สถานะ', v: (o) => ui.status(o.status) },
         { h: 'ยอดขาย', cls: 'num', v: (o) => U.money(o.grossSales) },
-        { h: 'เงินเข้า', cls: 'num', v: (o) => (A.calc.isPaid(o) ? U.money(o.actualPayout) : '<span class="badge b-pink">รอ</span>') },
-      ], orders, { onRow: true, foot: [{ v: 'รวม' }, { v: '' }, { v: '' }, { v: '' }, { v: `${orders.length} ออเดอร์` }, { cls: 'num', v: U.money(U.sum(orders.filter((o) => !A.isVoid(o.status)), (o) => o.grossSales)) }, { cls: 'num', v: U.money(U.sum(orders.filter(A.calc.isPaid), (o) => o.actualPayout)) }] });
+        { h: 'วันที่เงินเข้า', v: (o) => payDays(o) },
+        { h: 'เงินเข้า 1', cls: 'num', v: (o) => (A.calc.isPaid(o) ? U.money(paidAll(o)) : '<span class="badge b-pink">รอ</span>') },
+      ], orders, { onRow: true, foot: [{ v: 'รวม' }, { v: '' }, { v: '' }, { v: '' }, { v: `${orders.length} ออเดอร์` }, { cls: 'num', v: U.money(U.sum(orders.filter((o) => !A.isVoid(o.status)), (o) => o.grossSales)) }, { v: '' }, { cls: 'num', v: U.money(U.sum(orders, paidAll)) }] });
     } else if (state.list === 'payouts') {
       table = ui.table([
-        { h: 'วันที่เงินเข้า', v: (o) => U.thDate(o.payoutDate) }, { h: 'แพลตฟอร์ม', v: (o) => ui.pf(o.platform) }, { h: 'เลขคำสั่งซื้อ', v: (o) => U.esc(o.orderNo) },
-        { h: 'วันที่ส่ง', v: (o) => dayCell(o) }, { h: 'ยอดขาย', cls: 'num', v: (o) => U.money(o.grossSales) }, { h: 'เงินเข้า', cls: 'num', v: (o) => `<b>${U.money(A.calc.paidIn(o, per.from, per.to))}</b>` },
-      ], payouts, { onRow: true, foot: [{ v: 'รวม' }, { v: '' }, { v: '' }, { v: '' }, { cls: 'num', v: '' }, { cls: 'num', v: U.money(U.sum(payouts, (o) => A.calc.paidIn(o, per.from, per.to))) }] });
+        { h: 'วันที่เงินเข้า', v: (o) => payDays(o, per) }, { h: 'แพลตฟอร์ม', v: (o) => ui.pf(o.platform) }, { h: 'เลขคำสั่งซื้อ', v: (o) => U.esc(o.orderNo) },
+        { h: 'วันที่ส่ง', v: (o) => dayCell(o) }, { h: 'ยอดขาย', cls: 'num', v: (o) => U.money(o.grossSales) }, { h: 'เงินเข้า 2', cls: 'num', v: (o) => `<b>${U.money(A.calc.paidIn(o, per.from, per.to))}</b>` },
+      ], payouts, { onRow: true, foot: [{ v: 'รวม' }, { v: '' }, { v: `${payouts.length} ออเดอร์` }, { v: '' }, { cls: 'num', v: '' }, { cls: 'num', v: U.money(U.sum(payouts, (o) => A.calc.paidIn(o, per.from, per.to))) }] });
     } else if (state.list === 'expenses') {
       table = ui.table([
         { h: 'วันที่', v: (e) => U.thDate(e.date) }, { h: 'หมวด', v: (e) => `<span class="badge b-pink">${U.esc(e.category || 'อื่นๆ')}</span>` },
