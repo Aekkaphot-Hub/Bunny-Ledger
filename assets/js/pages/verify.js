@@ -41,7 +41,12 @@
   V.compare = (parsed, platform, report, mapping) => {
     const built = I.build(parsed, platform, report, mapping);
     const rows = [];
-    built.records.forEach((r) => {
+    const orphan = []; // เงินชดเชยของออเดอร์ที่ยังไม่มีในโปรแกรม (ตอนนำเข้าจะเก็บเป็นรายรับอื่นๆ)
+    const recs = built.records.filter((r) => {
+      if (r._compOnly && !A.db.get('orders', I.makeId(platform, r.orderNo))) { orphan.push(r._compOnly); return false; }
+      return true;
+    });
+    recs.forEach((r) => {
       const o = A.db.get('orders', I.makeId(platform, r.orderNo));
       const row = { orderNo: r.orderNo, items: r.itemLines || null, o, file: {}, app: {} };
       if (report === 'income') {
@@ -70,14 +75,14 @@
       rows.push(row);
     });
     // มีในโปรแกรม (ช่วงวันเดียวกัน) แต่ไม่มีในไฟล์
-    const inFile = new Set(built.records.map((r) => r.orderNo));
+    const inFile = new Set(recs.map((r) => r.orderNo));
     let from = null, to = null, extra = [];
     if (report === 'income') {
-      const ds = built.records.flatMap((r) => Object.keys(r.parts || {})).filter((d) => /^\d{4}-/.test(d)).sort();
+      const ds = recs.flatMap((r) => Object.keys(r.parts || {})).filter((d) => /^\d{4}-/.test(d)).sort();
       from = ds[0]; to = ds[ds.length - 1];
       if (from) extra = A.db.all('orders').filter((o) => o.platform === platform && !inFile.has(o.orderNo) && C.payoutParts(o).some((p) => p.date >= from && p.date <= to));
     } else {
-      const ds = built.records.map((r) => r.orderDate).filter(Boolean).sort();
+      const ds = recs.map((r) => r.orderDate).filter(Boolean).sort();
       from = ds[0]; to = ds[ds.length - 1];
       if (from) extra = A.db.all('orders').filter((o) => o.platform === platform && !inFile.has(o.orderNo) && o.orderDate >= from && o.orderDate <= to && o.statusRaw != null);
     }
@@ -86,14 +91,14 @@
       app: report === 'income' ? { pay: U.round2(U.sum(C.payoutParts(o).filter((p) => p.date >= from && p.date <= to), (p) => p.amount)), sales: o.grossSales } : { sales: o.grossSales, status: o.status },
     }));
     // เงินชดเชยจากแพลตฟอร์ม (บันทึกเป็นรายรับอื่นๆ)
-    const adj = (built.adjustments || []).map((a) => {
+    const adj = (built.adjustments || []).concat(orphan).map((a) => {
       const rec = A.db.get('otherIncome', `adj:${platform}:${a.ref}:${a.date || 'x'}`);
       return { ...a, app: rec ? rec.amount : null, ok: rec && Math.abs(rec.amount - a.amount) <= EPS };
     });
     const sum = (arr, f) => U.round2(U.sum(arr, (x) => f(x) || 0));
     const fileRows = rows.filter((r) => r.status !== 'extra');
     const tot = {
-      orders: built.records.length, items: built.itemCount, fileLines: built.rowCount,
+      orders: recs.length, items: built.itemCount, fileLines: built.rowCount,
       filePay: sum(fileRows, (r) => r.file.pay), appPay: sum(rows.filter((r) => r.status !== 'missing'), (r) => r.app.pay),
       fileSales: sum(fileRows, (r) => r.file.sales),
       // ออเดอร์ที่โปรแกรมใช้ยอดขายจากไฟล์รายได้ (แม่นกว่า) นับเป็นตรงกัน แล้วแจ้งส่วนต่างแยกไว้

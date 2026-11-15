@@ -38,6 +38,8 @@
       orderItem: { label: 'รหัสรายการสินค้า (1 ออเดอร์มีได้หลายรายการ)', kind: 'items', type: 'text', aliases: ['รหัสสินค้าในคำสั่งซื้อ', 'order item no.', 'order item id', 'orderitemid'] },
       items: { label: 'ชื่อสินค้า', kind: 'concat', type: 'text', aliases: ['ชื่อสินค้า', 'product name', 'item name'] },
       rowType: { label: 'ประเภทรายการ', kind: 'first', type: 'text', aliases: ['type', 'ประเภท', 'ประเภทรายการ', 'ประเภทธุรกรรม'] },
+      // TikTok: เงินชดเชย/ปรับยอดที่ผูกกับออเดอร์ → นับเป็นเงินเข้าของออเดอร์นั้น
+      relatedOrder: { label: 'เลขคำสั่งซื้อที่เกี่ยวข้อง (เงินชดเชย)', kind: 'first', type: 'text', aliases: ['หมายเลขคำสั่งซื้อที่เกี่ยวข้อง', 'รหัสคำสั่งซื้อที่เกี่ยวข้อง', 'related order id', 'related order number'] },
       // Lazada: ใช้ "วันที่ปรับปรุงเข้ายอดของฉัน" (วันที่เงินเข้ายอดร้านจริง) ก่อน "วันที่ทำรายการ"
       payoutDate: { label: 'วันที่เงินเข้า', kind: 'first', type: 'date', aliases: ['วันที่โอนชำระเงินสำเร็จ', 'วันที่โอนเงินสำเร็จ', 'วันที่โอนเงิน', 'วันที่ได้รับเงิน', 'วันที่ปรับปรุงเข้ายอดของฉัน', 'เวลาที่ชำระคำสั่งซื้อ', 'payout completed date', 'payout date', 'order settled time', 'settled time', 'settlement time', 'เวลาชำระบัญชี', 'release date', 'transaction date', 'วันที่ทำรายการ', 'statement date'] },
       actualPayout: { label: 'ยอดเงินที่ได้รับ (สุทธิ)', kind: 'sum', type: 'num', aliases: ['จำนวนเงินทั้งหมดที่โอนแล้ว', 'จำนวนเงินที่โอนแล้ว', 'จำนวนเงินที่โอน', 'ยอดเงินที่ได้รับ', 'ยอดการชำระเงินทั้งหมด', 'total released amount', 'released amount', 'total settlement amount', 'settlement amount', 'ยอดชำระทั้งหมด', 'ยอดเงินที่ชำระทั้งหมด', 'payout amount', 'รายได้สุทธิ'] },

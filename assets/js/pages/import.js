@@ -83,7 +83,7 @@
     box.innerHTML = queue.map((it) => {
       if (!it.parsed && !it.error) return `<div class="card"><b>${U.esc(it.file.name)}</b> <span class="muted">กำลังอ่าน…</span></div>`;
       if (!it.parsed) return `<div class="card"><div class="row"><b>${U.esc(it.file.name)}</b><span class="spacer"></span><button class="icon-btn" data-drop="${it.id}">${A.icon('x')}</button></div><div class="notice red mt-s">${A.icon('alert')}<div>${U.esc(it.error)}</div></div></div>`;
-      const recs = it.built ? it.built.records : [];
+      const recs = it.built ? it.built.records.filter((r) => !r._compOnly) : [];
       const shops = st.shops.filter((s) => s.platform === it.platform);
       const preview = recs.slice(0, 5);
       const cols = it.report === 'orders'
@@ -104,6 +104,7 @@
           <div class="small muted right">${U.num(it.built ? it.built.rowCount : 0)} แถว → <b>${U.num(recs.length)}</b> ออเดอร์<b>${itemsNote(it.built && it.built.itemCount, recs.length)}</b>${it.built && it.built.skipped ? `<br>ข้าม ${U.num(it.built.skipped)} แถว` : ''}</div>
         </div>
         ${it.parsed.piiCols && it.parsed.piiCols.length ? `<div class="notice mt-s" title="${U.esc(it.parsed.piiCols.join(', '))}">${A.icon('check')}<div>ตัดข้อมูลลูกค้าทิ้งแล้ว ${it.parsed.piiCols.length} คอลัมน์ (ชื่อ ที่อยู่ เบอร์โทร ฯลฯ) — <b>ไม่ถูกเก็บในโปรแกรม ไม่ขึ้นคลาวด์ ไม่ออกไปกับไฟล์ Excel</b></div></div>` : ''}
+        ${it.built && it.built.linked && it.built.linked.length ? `<div class="notice ok mt-s">${A.icon('check')}<div>เงินชดเชยที่ระบุเลขคำสั่งซื้อ ${it.built.linked.length} รายการ (${U.money(U.sum(it.built.linked, (a) => a.amount))}) — นับรวมเป็นเงินเข้าของออเดอร์นั้น (เช่น ชดเชยสินค้าตีกลับ)</div></div>` : ''}
         ${it.built && it.built.adjustments && it.built.adjustments.length ? `<div class="notice mt-s">${A.icon('info')}<div>มีรายการเงินชดเชยจากแพลตฟอร์ม ${it.built.adjustments.length} รายการ (${U.money(U.sum(it.built.adjustments, (a) => a.amount))}) — จะบันทึกเป็น "รายรับอื่นๆ"</div></div>` : ''}
         ${it.fromTpl ? `<div class="notice mt-s">${A.icon('check')}<div>ใช้การจับคู่คอลัมน์ที่จำไว้</div></div>` : ''}
         ${!it.sure && !it.fromTpl ? `<div class="notice warn mt-s">${A.icon('alert')}<div>ไม่แน่ใจว่าเป็นไฟล์ของแพลตฟอร์มไหน — โปรดตรวจช่อง "แพลตฟอร์ม" ก่อนบันทึก</div></div>` : ''}

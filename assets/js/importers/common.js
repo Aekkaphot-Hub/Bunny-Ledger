@@ -5,7 +5,7 @@
   const I = {};
   A.importers = I;
 
-  const NO_FUZZY = new Set(['orderItem', 'qty', 'status', 'sku', 'amount', 'rowType', 'substatus', 'carrier', 'itemRefund', 'sellerDiscount', 'itemGross']);
+  const NO_FUZZY = new Set(['orderItem', 'qty', 'status', 'sku', 'amount', 'rowType', 'relatedOrder', 'substatus', 'carrier', 'itemRefund', 'sellerDiscount', 'itemGross']);
   I.norm = (s) => String(s == null ? '' : s).toLowerCase().replace(/[\s\*\(\)\[\]\.:_\-\/฿,"'#]/g, '');
 
   /* ---------- reading ---------- */
@@ -210,7 +210,10 @@
           if (amt) {
             const day = dayOf(r);
             const k = `${id}|${day}`;
+            const rel = mapping.relatedOrder != null ? cleanId(r[mapping.relatedOrder]) : '';
             const cur = adjustments.get(k) || { ref: id, type: t, date: day, amount: 0 };
+            // เงินชดเชยที่ระบุเลขคำสั่งซื้อ (เช่น ชดเชยสินค้าตีกลับ) → นับเป็นเงินเข้าของออเดอร์นั้น
+            if (rel && rel !== id && /^\d{6,40}$/.test(rel)) cur.order = rel;
             cur.amount = U.round2(cur.amount + amt);
             adjustments.set(k, cur);
           }
@@ -306,7 +309,7 @@
           if (rec.grossSales == null && pos.length) rec.grossSales = U.round2(U.sum(pos));
           delete rec.amount;
         }
-        delete rec.feeName; delete rec.paidStatus; delete rec.rowType;
+        delete rec.feeName; delete rec.paidStatus; delete rec.rowType; delete rec.relatedOrder;
         // Shopee: ยอดขาย = สินค้าราคาปกติ − ส่วนลดจากร้าน (ส่วนลดที่ Shopee ออกให้ไม่หัก)
         if (rec.itemGross != null) rec.grossSales = U.round2(rec.itemGross - Math.abs(rec.sellerDiscount || 0));
         delete rec.itemGross; delete rec.sellerDiscount;
@@ -322,6 +325,22 @@
       }
       out.push(rec);
     });
+    // เงินชดเชยที่ผูกกับออเดอร์ → รวมเข้ารอบเงินเข้าของออเดอร์นั้น (วันเดียวกัน) หรือเป็นรอบเงินเข้าแยกของออเดอร์นั้น
+    const linked = [];
+    adjustments.forEach((a, k) => {
+      if (!a.order) return;
+      const rec = out.find((r) => r.orderNo === a.order && (r.payoutDate || '') === a.date);
+      if (rec) {
+        rec._part.pay = U.round2(rec._part.pay + a.amount);
+        rec._part.comp = U.round2((rec._part.comp || 0) + a.amount);
+        rec.actualPayout = rec._part.pay;
+      } else {
+        out.push({ platform, orderNo: a.order, payoutDate: a.date || undefined, actualPayout: a.amount, _compOnly: { ...a }, _part: { pay: a.amount, comp: a.amount, gross: null, refund: 0, fees: null } });
+      }
+      a.linked = true;
+      linked.push(a);
+      adjustments.delete(k);
+    });
     if (report === 'income') out = mergeParts(out);
     // จำนวนรายการสินค้า: ไฟล์ออเดอร์ = แถวของออเดอร์นั้น, ไฟล์รายได้ = เฉพาะเมื่อไฟล์มีรหัสรายการสินค้า (Lazada)
     const countItems = report === 'orders' || mapping.orderItem != null;
@@ -331,7 +350,7 @@
       if (countItems) r.itemLines = n;
       itemCount += n;
     });
-    return { records: out, skipped, dateOrder, rowCount: data.length, itemCount: countItems ? itemCount : null, adjustments: [...adjustments.values()] };
+    return { records: out, skipped, dateOrder, rowCount: data.length, itemCount: countItems ? itemCount : null, adjustments: [...adjustments.values()], linked };
   };
 
   /* รวมเงินเข้าหลายรอบของออเดอร์เดียวกัน → { parts: { 'YYYY-MM-DD': {pay, gross, refund, fees} }, ยอดรวม } */
@@ -375,10 +394,20 @@
   I.commit = async (built, { platform, report, filename }) => {
     const today = U.today();
     let created = 0, updated = 0;
-    const recs = built.records.map((r) => {
+    // เงินชดเชยของออเดอร์ที่ยังไม่มีในโปรแกรม → เก็บเป็นรายรับอื่นๆ แทน (ไม่สร้างออเดอร์ปลอม)
+    const orphan = [];
+    const records = built.records.filter((r) => {
+      if (!r._compOnly) return true;
+      const cur = A.db.getRaw('orders', I.makeId(platform, r.orderNo));
+      if (cur && !cur.deleted) return true;
+      orphan.push(r._compOnly);
+      return false;
+    });
+    const recs = records.map((r) => {
       const id = I.makeId(platform, r.orderNo);
       const cur = A.db.getRaw('orders', id);
       const alive = cur && !cur.deleted ? cur : null;
+      if (r._compOnly) r = { orderNo: r.orderNo, parts: r.parts }; // เงินชดเชยอย่างเดียว: ไม่แตะข้อมูลอื่นของออเดอร์
       const base = alive ? { ...alive } : { id, platform, orderNo: r.orderNo, createdAt: Date.now(), deleted: false };
       if (alive) updated++; else created++;
       const clean = {};
@@ -419,7 +448,12 @@
     });
     await A.db.putMany('orders', recs);
     // รายการที่ไม่ใช่ออเดอร์ในไฟล์รายได้ (เงินชดเชยจากแพลตฟอร์ม ฯลฯ) → รายรับอื่นๆ
-    const adj = (built.adjustments || []).map((a) => ({
+    // เงินชดเชยที่นับรวมกับออเดอร์แล้ว → ลบรายการ "รายรับอื่นๆ" เดิม (จากการนำเข้ารุ่นก่อน) กันนับซ้ำ
+    const orphanKeys = new Set(orphan.map((a) => `${a.ref}|${a.date}`));
+    const stale = (built.linked || []).filter((a) => !orphanKeys.has(`${a.ref}|${a.date}`))
+      .map((a) => A.db.get('otherIncome', `adj:${platform}:${a.ref}:${a.date || 'x'}`)).filter(Boolean);
+    if (stale.length) await A.db.putMany('otherIncome', stale.map((x) => ({ ...x, deleted: true })));
+    const adj = (built.adjustments || []).concat(orphan).map((a) => ({
       id: `adj:${platform}:${a.ref}:${a.date || 'x'}`, date: a.date || today, amount: a.amount, category: 'เงินชดเชยจากแพลตฟอร์ม', platform,
       note: `${A.PLATFORMS[platform].name} • ${a.type} • ${a.ref}`, source: filename, auto: true, deleted: false,
     }));

@@ -204,7 +204,13 @@
         { h: 'วันที่', v: (e) => U.thDate(e.date) }, { h: 'หมวด', v: (e) => U.esc(e.category || '') }, { h: 'รายละเอียด', v: (e) => U.esc(e.note || '') }, { h: 'จำนวนเงิน', cls: 'num', v: (e) => U.money(e.amount) },
       ], it.otherIncome, { foot: [{ v: 'รวม' }, { v: '' }, { v: '' }, { cls: 'num', v: U.money(U.sum(it.otherIncome, (e) => e.amount)) }] });
     }
+    // ออเดอร์ที่มีแค่ไฟล์รายได้ (ไม่มีไฟล์คำสั่งซื้อ) → ไม่รู้วันที่ส่ง โปรแกรมใช้วันที่สั่งแทน
+    const noShip = it.orders.filter((o) => !o.shipDate && o.statusRaw == null);
+    const pfNames = [...new Set(noShip.map((o) => A.PLATFORMS[o.platform].name))].join(', ');
+    const warn = noShip.length ? `<div class="notice warn" style="margin-bottom:12px">${A.icon('alert')}<div><b>${U.num(noShip.length)} ออเดอร์ในช่วงนี้ยังไม่มีวันที่ส่ง</b> (${U.esc(pfNames)} — มีแค่ไฟล์รายได้ โปรแกรมจึงใช้วันที่สั่งแทน แสดงด้วย *) ยอดจึงอาจไม่ตรงกับที่นับตามวันส่ง
+      — นำเข้า<b>ไฟล์คำสั่งซื้อ</b>ที่ครอบคลุมช่วงนี้ (เช่น TikTok "ทั้งหมด คำสั่งซื้อ" เลือกช่วงวันที่สร้างคำสั่งซื้อย้อนไปก่อนหน้า 7 วัน) แล้วออเดอร์จะย้ายไปอยู่วันที่ส่งจริงเอง</div></div>` : '';
     box.innerHTML = `
+      ${warn}
       <div class="card-head">
         <h3>${A.icon('file')} รายการ — ${per.label}</h3>
         <div class="row">
