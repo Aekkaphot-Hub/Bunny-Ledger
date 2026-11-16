@@ -275,6 +275,13 @@
     async sendVerify() { const u = auth && auth.currentUser; if (!u) throw new Error('ต้องเข้าสู่ระบบก่อน'); try { auth.languageCode = 'th'; await u.sendEmailVerification(); } catch (e) { throw new Error(thErr(e)); } },
     /* หลังกดลิงก์ยืนยันในอีเมล: โหลดสถานะบัญชีใหม่ + ขอสิทธิ์ใหม่จาก Firebase */
     async refreshUser() { const u = auth && auth.currentUser; if (!u) return false; await u.reload(); await auth.currentUser.getIdToken(true); return !!auth.currentUser.emailVerified; },
+    /* ยืนยันตัวตนอีกครั้งด้วยรหัสผ่านของอีเมลที่เข้าสู่ระบบอยู่ (ใช้ก่อนทำสิ่งที่ย้อนกลับไม่ได้ เช่น ลบไฟล์ที่นำเข้า) */
+    async reauth(pw) {
+      const u = auth && auth.currentUser;
+      if (!u || !u.email) throw new Error('ต้องเข้าสู่ระบบด้วยอีเมลก่อน');
+      if (!pw) throw new Error('ใส่รหัสผ่านก่อนนะ');
+      try { await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email, pw)); } catch (e) { throw new Error(thErr(e)); }
+    },
     async resetPassword(email) { if (!auth) throw new Error('ยังเชื่อมต่อ Firebase ไม่ได้'); try { auth.languageCode = 'th'; await auth.sendPasswordResetEmail(email); } catch (e) { throw new Error(thErr(e)); } },
     /* wipe: ล้างข้อมูลในเครื่องนี้ด้วย (ใช้กับเครื่องที่ใช้ร่วมกัน) — ข้อมูลบนคลาวด์ยังอยู่ */
     async signOut({ wipe = false } = {}) {

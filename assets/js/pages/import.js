@@ -19,6 +19,10 @@
           </div>
           <div>
             <div class="card">
+              <div class="card-head"><h3>${A.icon('clock')} ประวัติการนำเข้า</h3>${canDelete() ? `<button class="btn danger sm" id="del-imports">${A.icon('trash')} ลบไฟล์ที่นำเข้า</button>` : ''}</div>
+              <div id="history"></div>
+            </div>
+            <div class="card">
               <div class="card-head"><h3>${A.icon('info')} ไฟล์ที่ควรนำเข้า</h3></div>
               <ol class="steps">
                 <li><div><b>ไฟล์คำสั่งซื้อ</b> — ใช้ดูสถานะ เลขพัสดุ ยอดขาย <span class="muted">(นำเข้าทุกวัน/ทุกครั้งที่อัปเดต)</span></div></li>
@@ -27,10 +31,6 @@
               </ol>
               <p class="small muted mt-s">${A.icon('check')} ยอดขายนับตาม <b>วันที่ส่งสินค้า</b> • ข้อมูลลูกค้า (ชื่อ ที่อยู่ เบอร์โทร อีเมล เลขผู้เสียภาษี ข้อความ) ถูกตัดทิ้งตั้งแต่ตอนอ่านไฟล์ ไม่ถูกเก็บในโปรแกรม</p>
               <p class="small muted mt-s">ดูวิธีดาวน์โหลดไฟล์ของแต่ละแพลตฟอร์มได้ที่หน้า <a href="#/shops">ร้านค้าของฉัน</a></p>
-            </div>
-            <div class="card">
-              <div class="card-head"><h3>${A.icon('clock')} ประวัติการนำเข้า</h3></div>
-              <div id="history"></div>
             </div>
           </div>
         </div>`;
@@ -42,6 +42,8 @@
       dz.addEventListener('drop', (e) => addFiles([...e.dataTransfer.files]));
       drawQueue(el);
       drawHistory(el);
+      const db = el.querySelector('#del-imports');
+      if (db) db.onclick = () => deleteImports(el);
 
       async function addFiles(files) {
         for (const file of files) {
@@ -176,13 +178,77 @@
     function o_ok(x) { return x >= 0; }
   }
 
+  /* ---------- ประวัติการนำเข้า + ลบไฟล์ที่นำเข้า ---------- */
+  const picked = new Set();
+  let showAll = false;
+  // ลบได้เฉพาะเจ้าของร้าน / ผู้จัดการ (พนักงานนำเข้าได้แต่ลบไม่ได้)
+  const canDelete = () => !A.workspace || A.workspace.can('finance');
   function drawHistory(el) {
     const box = el.querySelector('#history');
     if (!box) return;
-    const rows = A.db.all('imports').sort((a, b) => b.at - a.at).slice(0, 15);
-    box.innerHTML = rows.length ? `<div class="todo-list">${rows.map((r) => `<div class="todo tone-${r.report === 'income' ? 'mint' : 'blue'}" style="cursor:default">
+    const all = A.db.all('imports').sort((a, b) => b.at - a.at);
+    [...picked].forEach((id) => { if (!all.some((r) => r.id === id)) picked.delete(id); });
+    const rows = showAll ? all : all.slice(0, 15);
+    const del = canDelete();
+    box.innerHTML = rows.length ? `
+      ${del ? `<div class="row" style="margin-bottom:8px"><label class="check small"><input type="checkbox" id="pick-all" ${picked.size && rows.every((r) => picked.has(r.id)) ? 'checked' : ''}> เลือกทั้งหมด</label><span class="spacer"></span><span class="small muted">${picked.size ? `เลือกแล้ว <b>${picked.size}</b> ไฟล์` : 'ติ๊กไฟล์ที่ต้องการลบ'}</span></div>` : ''}
+      <div class="todo-list">${rows.map((r) => `<label class="todo tone-${r.report === 'income' ? 'mint' : 'blue'}" style="cursor:${del ? 'pointer' : 'default'}">
+      ${del ? `<input type="checkbox" data-pick="${U.esc(r.id)}" ${picked.has(r.id) ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--pink-deep);flex:none">` : ''}
       <span class="t-ic">${A.icon(r.report === 'income' ? 'wallet' : 'parcel')}</span>
       <div class="t-main"><b title="${U.esc(r.filename)}">${U.esc(r.filename)}</b><small>${A.PLATFORMS[r.platform] ? A.PLATFORMS[r.platform].name : ''} • ${r.report === 'income' ? 'รายได้' : 'คำสั่งซื้อ'} • ${r.orders != null ? `${r.orders} ออเดอร์${r.items && r.items !== r.orders ? ` (${r.items} รายการสินค้า)` : ''} • ` : ''}ใหม่ ${r.created} / อัปเดต ${r.updated} • ${U.thDateTime(r.at)}</small></div>
-    </div>`).join('')}</div>` : '<p class="muted small">ยังไม่เคยนำเข้าไฟล์</p>';
+    </label>`).join('')}</div>
+      ${all.length > 15 ? `<button class="btn ghost sm mt-s" id="hist-more">${showAll ? 'แสดงแค่ 15 ไฟล์ล่าสุด' : `แสดงทั้งหมด (${all.length} ไฟล์)`}</button>` : ''}` : '<p class="muted small">ยังไม่เคยนำเข้าไฟล์</p>';
+    box.querySelectorAll('[data-pick]').forEach((c) => { c.onchange = () => { if (c.checked) picked.add(c.dataset.pick); else picked.delete(c.dataset.pick); drawHistory(el); }; });
+    const pa = box.querySelector('#pick-all');
+    if (pa) pa.onchange = () => { rows.forEach((r) => (pa.checked ? picked.add(r.id) : picked.delete(r.id))); drawHistory(el); };
+    const more = box.querySelector('#hist-more');
+    if (more) more.onclick = () => { showAll = !showAll; drawHistory(el); };
+    const btn = el.querySelector('#del-imports');
+    if (btn) btn.innerHTML = `${A.icon('trash')} ลบไฟล์ที่นำเข้า${picked.size ? ` (${picked.size})` : ''}`;
+  }
+
+  /* ยืนยันการลบด้วยรหัสผ่านของอีเมลที่เข้าสู่ระบบอยู่ — ถามทุกครั้ง */
+  function deleteImports(el) {
+    if (!picked.size) { ui.toast('ติ๊กเลือกไฟล์ในประวัติการนำเข้าก่อน แล้วกดลบ', 'err'); return; }
+    const user = A.sync && A.sync.user();
+    if (!user || !user.email) {
+      ui.modal({ title: 'ต้องเข้าสู่ระบบก่อน', body: '<p>การลบไฟล์ที่นำเข้าต้องยืนยันด้วย<b>รหัสผ่านของอีเมลที่เข้าสู่ระบบ</b>ทุกครั้ง — เข้าสู่ระบบที่ ตั้งค่า → บัญชี &amp; ซิงก์ ก่อนนะ</p>', actions: [{ label: 'ปิด', cls: 'ghost' }, { label: 'ไปเข้าสู่ระบบ', onClick: () => { location.hash = '#/settings?focus=account'; } }] });
+      return;
+    }
+    const ids = [...picked];
+    const files = A.db.all('imports').filter((x) => ids.includes(x.id));
+    const p = I.undoPlan(ids);
+    const line = (n, t) => (n ? `<li>${t.replace('#', `<b>${U.num(n)}</b>`)}</li>` : '');
+    ui.modal({
+      title: `ลบไฟล์ที่นำเข้า ${files.length} ไฟล์`, wide: true,
+      body: `
+        <ul class="small" style="margin:0 0 10px;padding-left:18px">${files.map((f) => `<li>${U.esc(f.filename)} <span class="muted">(${A.PLATFORMS[f.platform] ? A.PLATFORMS[f.platform].name : ''} ${f.report === 'income' ? 'รายได้' : 'คำสั่งซื้อ'} • ${U.thDateTime(f.at)})</span></li>`).join('')}</ul>
+        <div class="notice red">${A.icon('alert')}<div><b>ข้อมูลที่ไฟล์เหล่านี้นำเข้าจะถูกลบ</b> (ย้อนกลับไม่ได้ — นำเข้าไฟล์ใหม่ได้ภายหลัง)
+          <ul style="margin:6px 0 0;padding-left:18px">
+            ${line(p.del.length, 'ลบออเดอร์ # ออเดอร์ (ไม่มีไฟล์อื่นนำเข้า)')}
+            ${line(p.unpaid, 'ออเดอร์ # ออเดอร์กลับเป็น "ยังไม่ได้รับเงิน"')}
+            ${line(p.parts, 'ลบรอบเงินเข้า # รอบ')}
+            ${line(p.upd.length - p.unpaid, 'ออเดอร์ # ออเดอร์ยังอยู่ (มีไฟล์อื่นนำเข้าด้วย)')}
+            ${line(p.other.length, 'ลบเงินชดเชย/ปรับยอด # รายการ')}
+            ${line(p.deps.length, 'ลบยอดถอนเงิน # รายการ')}
+          </ul>
+          ${p.legacy.length ? `<div class="mt-s">${p.legacy.length} ไฟล์นำเข้าก่อนมีระบบลบ — จะลบได้แค่ชื่อในประวัติ ถ้าต้องการลบข้อมูลด้วย ให้นำเข้าไฟล์เดิมซ้ำ 1 ครั้งแล้วลบไฟล์นั้น</div>` : ''}
+        </div></div>
+        <div class="field mt"><label>รหัสผ่านของ <b>${U.esc(user.email)}</b> เพื่อยืนยันการลบ</label><input class="input" type="password" data-pw autocomplete="current-password"></div>
+        <div class="auth-err hidden" data-err></div>`,
+      actions: [
+        { label: 'ยกเลิก', cls: 'ghost' },
+        { label: `${A.icon('trash')} ยืนยันลบ`, cls: 'danger', onClick: async (_c, root) => {
+          const err = root.querySelector('[data-err]');
+          err.classList.add('hidden');
+          try { await A.sync.reauth(root.querySelector('[data-pw]').value); } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); root.querySelector('[data-pw]').select(); return false; }
+          const r = await I.undo(ids);
+          picked.clear();
+          ui.toast(`ลบไฟล์ที่นำเข้า ${r.imports.length} ไฟล์แล้ว • ลบออเดอร์ ${U.num(r.del.length)} • แก้ไข ${U.num(r.upd.length)}`, 'ok');
+          A.rerender();
+        } },
+      ],
+      onOpen: (root) => { const pw = root.querySelector('[data-pw]'); pw.onkeydown = (e) => { if (e.key === 'Enter') root.querySelector('.modal-foot .btn.danger').click(); }; },
+    });
   }
 })(window.App);

@@ -436,6 +436,57 @@
     return { records: out, skipped, dateOrder, rowCount: data.length, itemCount: countItems ? itemCount : null, adjustments: [...adjustments.values()], linked, withdrawals: report === 'income' ? parsed.withdrawals || [] : [] };
   };
 
+  /* ---------- ลบไฟล์ที่นำเข้า (ย้อนข้อมูลที่ไฟล์นั้นนำเข้า) ----------
+     - รอบเงินเข้าที่ไฟล์นี้เขียน → ลบออก แล้วคำนวณยอดเงินเข้าใหม่จากรอบที่เหลือ (ไม่เหลือ = กลับเป็นยังไม่ได้รับเงิน)
+     - ออเดอร์ที่ไม่มีไฟล์อื่นนำเข้าเลย → ลบออเดอร์
+     - ออเดอร์ที่ไฟล์อื่นนำเข้าด้วย → เก็บไว้ (ข้อมูลจากไฟล์อื่นยังอยู่)
+     - เงินชดเชย / ยอดถอนเงินที่มาจากไฟล์นี้ → ลบ
+     ไฟล์ที่นำเข้าก่อนมีระบบนี้ ไม่มีรหัสการนำเข้า → ลบได้แค่ประวัติ (ให้นำเข้าไฟล์เดิมซ้ำ 1 ครั้งแล้วลบใหม่) */
+  I.undoPlan = (impIds) => {
+    const ids = new Set([].concat(impIds));
+    const del = [], upd = [];
+    let parts = 0;
+    A.db.all('orders').forEach((o) => {
+      const files = o.files || [];
+      const pp = o.payoutParts || {};
+      const gone = Object.keys(pp).filter((d) => pp[d] && ids.has(pp[d].imp));
+      const touched = files.some((f) => ids.has(f));
+      if (!touched && !gone.length) return;
+      parts += gone.length;
+      const left = files.filter((f) => !ids.has(f));
+      if (touched && !left.length && !o.manualPaid && !o.claim && !o.note) { del.push(o); return; }
+      const keep = {};
+      Object.keys(pp).forEach((d) => { if (!gone.includes(d)) keep[d] = pp[d]; });
+      const next = { ...o, files: left };
+      if (gone.length) {
+        if (Object.keys(keep).length) {
+          const t = I.partTotals(keep);
+          Object.assign(next, { payoutParts: keep, actualPayout: t.actualPayout, payoutDate: t.payoutDate || o.payoutDate });
+          ['platformFees', 'shipPaid', 'compGot', 'weightEst', 'weightBilled', 'refundAmount'].forEach((k) => { if (t[k] != null) next[k] = t[k]; else delete next[k]; });
+          if (t.grossSales != null && t.salesStrong) next.grossSales = t.grossSales;
+        } else {
+          Object.assign(next, { payoutParts: null, actualPayout: null, payoutDate: null, salesFromIncome: false });
+          ['shipPaid', 'compGot', 'weightEst', 'weightBilled'].forEach((k) => delete next[k]);
+          if (o.returnedByIncome) { next.returnedByIncome = false; if (left.length) next.status = 'completed'; }
+        }
+      }
+      upd.push(next);
+    });
+    const other = A.db.all('otherIncome').filter((e) => ids.has(e.imp));
+    const deps = A.db.all('deposits').filter((d) => ids.has(d.imp));
+    const imports = A.db.all('imports').filter((x) => ids.has(x.id));
+    return { del, upd, parts, unpaid: upd.filter((o) => o.actualPayout == null && (A.db.get('orders', o.id) || {}).actualPayout != null).length, other, deps, imports, legacy: imports.filter((x) => !String(x.id || '').startsWith('imp_')) };
+  };
+  I.undo = async (impIds) => {
+    const p = I.undoPlan(impIds);
+    if (p.del.length) await A.db.putMany('orders', p.del.map((o) => ({ ...o, deleted: true })));
+    if (p.upd.length) await A.db.putMany('orders', p.upd);
+    if (p.other.length) await A.db.putMany('otherIncome', p.other.map((e) => ({ ...e, deleted: true })));
+    if (p.deps.length) await A.db.putMany('deposits', p.deps.map((d) => ({ ...d, deleted: true })));
+    if (p.imports.length) await A.db.putMany('imports', p.imports.map((x) => ({ ...x, deleted: true })));
+    return p;
+  };
+
   /* รวมเงินเข้าหลายรอบของออเดอร์เดียวกัน → { parts: { 'YYYY-MM-DD': {pay, gross, refund, fees} }, ยอดรวม } */
   function mergeParts(recs) {
     const by = new Map();
@@ -481,6 +532,8 @@
   I.makeId = (platform, orderNo) => `${platform}:${String(orderNo).replace(/\//g, '_')}`;
   const MANUAL = ['note', 'manualPaid', 'mismatchOk'];
   I.commit = async (built, { platform, report, filename }) => {
+    // ทุกอย่างที่ไฟล์นี้นำเข้า ติดรหัสการนำเข้าไว้ → ลบไฟล์นำเข้าทีหลังได้ (I.undo)
+    const impId = 'imp_' + U.uid();
     const today = U.today();
     let created = 0, updated = 0;
     // เงินชดเชยของออเดอร์ที่ยังไม่มีในโปรแกรม → เก็บเป็นรายรับอื่นๆ แทน (ไม่สร้างออเดอร์ปลอม)
@@ -515,7 +568,9 @@
         // เงินเข้าเก็บแยกรอบตามวันที่ → นำเข้าไฟล์หลายเดือนแล้วรวมกันถูก นำเข้าไฟล์เดิมซ้ำก็ไม่นับซ้ำ
         const legacy = alive && !alive.manualPaid && alive.actualPayout != null && !alive.payoutParts ? { [alive.payoutDate || 'x']: { pay: alive.actualPayout } } : {};
         const prev = alive && !alive.manualPaid && alive.payoutParts ? alive.payoutParts : legacy;
-        const parts = { ...prev, ...r.parts };
+        const tagged = {};
+        Object.entries(r.parts || {}).forEach(([d, p]) => { tagged[d] = { ...p, imp: impId }; });
+        const parts = { ...prev, ...tagged };
         const t = I.partTotals(parts);
         next = { ...base, payoutParts: parts, actualPayout: t.actualPayout, payoutDate: t.payoutDate || base.payoutDate || today, manualPaid: false };
         if (t.platformFees != null) next.platformFees = t.platformFees;
@@ -533,6 +588,7 @@
         else if (base.returnedByIncome) { next.status = 'completed'; next.returnedByIncome = false; }
         if (!next.source) next.source = filename;
       }
+      next.files = [...new Set([...(base.files || []), impId])];
       next.deleted = false;
       return next;
     });
@@ -545,17 +601,17 @@
     if (stale.length) await A.db.putMany('otherIncome', stale.map((x) => ({ ...x, deleted: true })));
     const adj = (built.adjustments || []).concat(orphan).map((a) => ({
       id: `adj:${platform}:${a.ref}:${a.date || 'x'}`, date: a.date || today, amount: a.amount, category: a.amount < 0 ? 'ปรับปรุงยอดจากแพลตฟอร์ม' : 'เงินชดเชยจากแพลตฟอร์ม', platform,
-      note: `${A.PLATFORMS[platform].name} • ${a.type} • ${a.ref}`, source: filename, auto: true, deleted: false,
+      note: `${A.PLATFORMS[platform].name} • ${a.type} • ${a.ref}`, source: filename, imp: impId, auto: true, deleted: false,
     }));
     if (adj.length) await A.db.putMany('otherIncome', adj);
     // ยอดถอนเงินเข้าบัญชีธนาคาร (TikTok) → หน้า "เงินเข้าบัญชีธนาคาร" (เก็บสถานะที่ผู้ใช้ยืนยันไว้)
     const wds = (built.withdrawals || []).map((w) => {
       const id = `${platform}:${w.kind}:${w.ref}`;
       const cur = A.db.get('deposits', id) || {};
-      return { ...cur, id, kind: w.kind, platform, ref: w.ref, date: w.date, amount: w.amount, status: w.status, source: filename };
+      return { ...cur, id, kind: w.kind, platform, ref: w.ref, date: w.date, amount: w.amount, status: w.status, source: filename, imp: impId };
     });
     if (wds.length) await A.db.putMany('deposits', wds);
-    await A.db.put('imports', { at: Date.now(), filename, platform, report, rows: built.rowCount, orders: recs.length, items: built.itemCount, created, updated, skipped: built.skipped, adjustments: adj.length });
+    await A.db.put('imports', { id: impId, at: Date.now(), filename, platform, report, rows: built.rowCount, orders: recs.length, items: built.itemCount, created, updated, skipped: built.skipped, adjustments: adj.length });
     return { created, updated, total: recs.length, items: built.itemCount, adjustments: adj.length };
   };
 })(window.App);
