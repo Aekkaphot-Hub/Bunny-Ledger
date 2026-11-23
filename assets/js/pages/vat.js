@@ -21,24 +21,41 @@
       cum += revenue;
       return { from: b.from, label: U.thMonth(b.from), sales: b.sales, other: b.otherIncome, revenue, cum };
     });
-    // วันแรกที่รายรับสะสมเกินเกณฑ์
-    let crossDate = null, c = 0;
-    if (cum > cfg.threshold) {
-      for (const b of S.bucket('day', from, to)) { c += revenueOf(b, cfg); if (c > cfg.threshold) { crossDate = b.from; break; } }
-    }
-    // คาดการณ์จากค่าเฉลี่ย 3 เดือนล่าสุดที่จบแล้ว
+    // รายรับสะสมรายวัน → วันแรกที่สะสมเกินเกณฑ์
+    let c = 0, crossIdx = -1;
+    const days = S.bucket('day', from, to).map((b, i) => {
+      const revenue = revenueOf(b, cfg);
+      c += revenue;
+      if (crossIdx < 0 && U.round2(c) > cfg.threshold) crossIdx = i;
+      return { date: b.from, sales: b.sales, other: b.otherIncome, revenue, cum: c };
+    });
+    const crossDate = crossIdx >= 0 ? days[crossIdx].date : null;
+    const withData = days.filter((d) => d.revenue !== 0);
+    const firstData = withData.length ? withData[0].date : null;
+    const lastData = withData.length ? withData[withData.length - 1].date : null;
     const doneMonths = months.filter((m) => U.monthEnd(m.from) < today && m.revenue > 0).slice(-3);
     const avg = doneMonths.length ? U.sum(doneMonths, (m) => m.revenue) / doneMonths.length : 0;
-    let projected = null;
-    if (!crossDate && avg > 0 && year === today.slice(0, 4)) {
+    // คาดการณ์วันที่จะถึงเกณฑ์ จากยอดเฉลี่ยต่อวัน 90 วันล่าสุดที่มีข้อมูล
+    let projected = null, estPast = null, dailyAvg = 0, rateDays = 0, yearEndEst = null, needPerDay = null;
+    if (!crossDate && lastData && year === today.slice(0, 4)) {
+      const base = lastData > today ? today : lastData;
+      const back = U.addDays(base, -89);
+      const start = firstData > back ? firstData : back;
+      rateDays = U.diffDays(start, base) + 1;
+      dailyAvg = U.sum(days.filter((d) => d.date >= start && d.date <= base), (d) => d.revenue) / rateDays;
       const left = cfg.threshold - cum;
-      const m = Math.ceil(left / avg);
-      const at = U.addMonths(U.monthStart(today), m);
-      if (at.slice(0, 4) === year) projected = at;
+      const daysToYearEnd = U.diffDays(base, to);
+      if (daysToYearEnd > 0) needPerDay = left / daysToYearEnd;
+      if (dailyAvg > 0) {
+        yearEndEst = cum + dailyAvg * daysToYearEnd;
+        const at = U.addDays(base, Math.max(1, Math.ceil(left / dailyAvg))); // ต้อง "เกิน" เกณฑ์ จึงนับอย่างน้อยอีก 1 วัน
+        if (at < today) estPast = at; // ข้อมูลยังไม่ล่าสุด: ตามอัตรานี้ยอดอาจถึงไปแล้ว
+        else if (at.slice(0, 4) === year) projected = at;
+      }
     }
     const pct = cfg.threshold ? cum / cfg.threshold : 0;
     return {
-      year, cfg, months, total: cum, pct, avg, projected, crossDate,
+      year, cfg, months, days, total: cum, pct, avg, projected, estPast, dailyAvg, rateDays, yearEndEst, needPerDay, firstData, lastData, crossDate,
       deadline: crossDate ? U.addDays(crossDate, 30) : null,
       level: crossDate ? 'over' : pct >= 0.8 ? 'warn' : 'ok',
     };
@@ -83,7 +100,7 @@
       ? `<div class="notice red">${A.icon('alert')}<div><b>รายรับเกิน ${U.money0(cfg.threshold)} แล้ว เมื่อ ${U.thDate(th.crossDate)}</b> — ต้องยื่นจดทะเบียนภาษีมูลค่าเพิ่ม (ภ.พ.01) ภายใน <b>${U.thDate(th.deadline)}</b>${daysLeft != null ? (daysLeft >= 0 ? ` (เหลือ ${daysLeft} วัน)` : ` (<b>เลยกำหนดมาแล้ว ${-daysLeft} วัน</b>)`) : ''}${cfg.registered ? ' • คุณตั้งค่าว่าจดแล้ว' : ''}</div></div>`
       : th.level === 'warn'
         ? `<div class="notice warn">${A.icon('alert')}<div>รายรับถึง <b>${U.pct(th.pct)}</b> ของเกณฑ์แล้ว — เหลืออีก ${U.money(left)}${th.projected ? ` • คาดว่าจะเกินประมาณ <b>${U.thMonth(th.projected)}</b>` : ''} เตรียมเอกสารจด VAT ไว้ได้เลย</div></div>`
-        : `<div class="notice ok">${A.icon('check')}<div>ยังไม่ถึงเกณฑ์ — เหลืออีก ${U.money(left)}${th.projected ? ` • ถ้ายอดขายเท่าช่วงนี้ คาดว่าจะเกินประมาณ ${U.thMonth(th.projected)}` : thisYear && th.avg ? ' • ปีนี้น่าจะยังไม่เกินเกณฑ์' : ''}</div></div>`;
+        : `<div class="notice ok">${A.icon('check')}<div>ยังไม่ถึงเกณฑ์ — เหลืออีก ${U.money(left)}${th.projected ? ` • ถ้ายอดขายเท่าช่วงนี้ คาดว่าจะเกินประมาณ ${U.thMonth(th.projected)}` : thisYear && th.dailyAvg > 0 && !th.estPast ? ' • ปีนี้น่าจะยังไม่เกินเกณฑ์' : ''}</div></div>`;
     const yearSum = mon.reduce((a, m) => ({ out: a.out + m.out, inp: a.inp + m.feeVat + m.expVat, net: a.net + m.net }), { out: 0, inp: 0, net: 0 });
     const curM = mon.find((m) => m.from === U.monthStart(U.today()));
     el.innerHTML = `
@@ -107,6 +124,7 @@
             <div class="mt-s">${levelNotice}</div>
             <p class="small muted">นับจาก ยอดขายทุกแพลตฟอร์ม (ตามวันที่ส่งสินค้า)${cfg.countOtherIncome ? ' + รายรับอื่นๆ' : ''} • เฉลี่ย 3 เดือนล่าสุด ${U.money(th.avg)}/เดือน</p>
           </div>
+          ${reachCard(th)}
           ${cfg.registered ? `<div class="card">
             <div class="card-head"><h3>${A.icon('receipt')} VAT รายเดือน (ภ.พ.30)</h3><span class="sub">จด VAT ตั้งแต่ ${U.thDate(cfg.since) || '-'} • อัตรา ${U.pct(cfg.rate, 0)}</span></div>
             <div class="kpis">
@@ -127,7 +145,7 @@
           <div class="card">
             <div class="card-head"><h3>${A.icon('calendar')} รายรับรายเดือน</h3></div>
             ${ui.table([
-              { h: 'เดือน', v: (m) => m.label + (th.crossDate && th.crossDate.slice(0, 7) === m.from.slice(0, 7) ? ' <span class="badge b-red">เกินเกณฑ์</span>' : '') },
+              { h: 'เดือน', v: (m) => m.label + (th.crossDate && th.crossDate.slice(0, 7) === m.from.slice(0, 7) ? ` <span class="badge b-red">เกินเกณฑ์ ${U.thDate(th.crossDate)}</span>` : '') },
               { h: 'ยอดขาย', cls: 'num', v: (m) => U.money(m.sales) },
               { h: 'รายรับอื่นๆ', cls: 'num', v: (m) => (cfg.countOtherIncome ? U.money(m.other) : '<span class="muted">ไม่นับ</span>') },
               { h: 'รวม', cls: 'num', v: (m) => `<b>${U.money(m.revenue)}</b>` },
@@ -183,11 +201,65 @@
     el.querySelector('#vat-xl').onclick = () => exportXl(th, mon);
   }
 
+  /* การ์ด "ยอดถึงเกณฑ์วันที่เท่าไหร่": ถึงแล้วบอกวันจริง / ยังไม่ถึงบอกวันที่คาดการณ์ */
+  function reachCard(th) {
+    const cfg = th.cfg;
+    const amt = U.money0(cfg.threshold);
+    const left = Math.max(0, cfg.threshold - th.total);
+    const hero = (label, value, sub) => `<div><span class="muted small">${label}</span>
+      <div style="font-family:var(--font-head);font-size:24px;line-height:1.35">${value}</div>
+      ${sub ? `<div class="small muted">${sub}</div>` : ''}</div>`;
+    const coverage = th.firstData
+      ? (th.firstData > `${th.year}-01-07`
+        ? `<div class="notice warn mt-s">${A.icon('info')}<div>มีข้อมูลตั้งแต่ <b>${U.thDate(th.firstData)}</b> ถึง ${U.thDate(th.lastData)} • ถ้ามียอดขายก่อนหน้านี้ที่ยังไม่ได้นำเข้า วันที่จริงจะเร็วกว่านี้</div></div>`
+        : `<p class="small muted">นับจากข้อมูลที่นำเข้า ${U.thDate(th.firstData)} – ${U.thDate(th.lastData)}</p>`)
+      : '';
+    let body;
+    if (th.crossDate) {
+      const near = th.days.filter((d) => d.revenue !== 0 || d.date === th.crossDate);
+      const at = near.findIndex((d) => d.date === th.crossDate);
+      const day = near[at];
+      body = `${hero('ยอดสะสมเกินเกณฑ์ในวันที่', U.thDateLong(th.crossDate), `ต้องยื่น ภ.พ.01 ภายใน ${U.thDate(th.deadline)}`)}
+        <div class="kpis mt-s">
+          ${ui.kpi({ label: 'สะสมก่อนวันนั้น', value: U.money(day.cum - day.revenue), foot: `ยังขาดอีก ${U.money(Math.max(0, cfg.threshold - (day.cum - day.revenue)))}`, icon: 'calendar', tone: 'blue' })}
+          ${ui.kpi({ label: 'รายรับวันนั้น', value: U.money(day.revenue), foot: `ยอดขาย ${U.money0(day.sales)}`, icon: 'wallet', tone: 'mint' })}
+          ${ui.kpi({ label: 'สะสมเมื่อจบวัน', value: U.money(day.cum), foot: `เกินเกณฑ์ ${U.money(day.cum - cfg.threshold)}`, icon: 'percent', tone: 'pink' })}
+        </div>
+        <div class="mt-s reach-tbl">${ui.table([
+          { h: 'วันที่', v: (d) => `<a href="#/history?gran=day&d=${d.date}">${U.thDate(d.date)}</a>${d.date === th.crossDate ? ' <span class="badge b-red">ถึงเกณฑ์</span>' : ''}` },
+          { h: 'รายรับวันนั้น', cls: 'num', v: (d) => U.money(d.revenue) },
+          { h: 'สะสม', cls: 'num', v: (d) => `<b>${U.money(d.cum)}</b>` },
+        ], near.slice(Math.max(0, at - 3), at + 4), { rowCls: (d) => (d.date === th.crossDate ? 'sel' : '') })}</div>`;
+    } else if (!th.firstData) {
+      body = `<p class="muted">ยังไม่มีรายรับของปี ${+th.year + 543}</p>`;
+    } else if (th.year !== U.today().slice(0, 4)) {
+      body = hero(`ปี ${+th.year + 543} ยอดไม่ถึงเกณฑ์`, U.money(th.total), `ต่ำกว่าเกณฑ์ ${U.money(left)}`);
+    } else {
+      const basis = `จากยอดเฉลี่ย ${U.money(th.dailyAvg)}/วัน (${U.num(th.rateDays)} วันล่าสุดที่มีข้อมูล)`;
+      const main = th.projected
+        ? hero('ยังไม่ถึงเกณฑ์ • คาดว่าจะถึงประมาณ', U.thDateLong(th.projected), `อีกประมาณ ${U.num(U.diffDays(U.today(), th.projected))} วัน ${basis}`)
+        : th.estPast
+          ? hero('ข้อมูลยังไม่ล่าสุด • ยอดอาจถึงเกณฑ์แล้วราว', U.thDateLong(th.estPast), `นำเข้าไฟล์ล่าสุดเพื่อหาวันที่จริง • ${basis}`)
+          : hero('ถ้าขายเท่าช่วงนี้ ปีนี้จะยังไม่ถึงเกณฑ์', th.yearEndEst != null ? `คาดยอดสิ้นปี ${U.money(th.yearEndEst)}` : 'ยังคาดการณ์ไม่ได้', th.dailyAvg > 0 ? basis : '');
+      body = `${main}
+        <div class="kpis mt-s">
+          ${ui.kpi({ label: 'เหลืออีก', value: U.money(left), foot: `จึงจะเกิน ${amt}`, icon: 'percent', tone: 'pink' })}
+          ${ui.kpi({ label: 'ยอดเฉลี่ยต่อวัน', value: U.money(th.dailyAvg), foot: `${U.num(th.rateDays)} วันล่าสุดที่มีข้อมูล`, icon: 'wallet', tone: 'mint' })}
+          ${th.needPerDay != null ? ui.kpi({ label: 'ต้องขายต่อวันให้ถึงในปีนี้', value: U.money(th.needPerDay), foot: 'เฉลี่ยจนถึง 31 ธ.ค.', icon: 'calendar', tone: 'blue' }) : ''}
+        </div>`;
+    }
+    return `<div class="card">
+      <div class="card-head"><h3>${A.icon('calendar')} ยอดถึง ${amt} วันที่เท่าไหร่</h3><span class="sub">นับตามวันที่ส่งสินค้า</span></div>
+      ${body}
+      ${coverage}
+    </div>`;
+  }
+
   function exportXl(th, mon) {
     const y = +state.year + 543;
     const sheets = [{
       name: 'เกณฑ์ 1.8 ล้าน', title: `รายรับเทียบเกณฑ์จด VAT ปี ${y} — ${A.settings().shopName}`,
-      sub: `รายรับสะสม ${U.money(th.total)} (${U.pct(th.pct)} ของเกณฑ์ ${U.money0(th.cfg.threshold)})${th.crossDate ? ` • เกินเกณฑ์ ${U.thDate(th.crossDate)} • ต้องจดภายใน ${U.thDate(th.deadline)}` : ''}`,
+      sub: `รายรับสะสม ${U.money(th.total)} (${U.pct(th.pct)} ของเกณฑ์ ${U.money0(th.cfg.threshold)})${th.crossDate ? ` • เกินเกณฑ์ ${U.thDate(th.crossDate)} • ต้องจดภายใน ${U.thDate(th.deadline)}` : th.projected ? ` • คาดว่าจะถึงเกณฑ์ประมาณ ${U.thDate(th.projected)}` : ''}`,
       tables: [{ cols: [
         { h: 'เดือน', w: 18, t: 'text', v: (m) => m.label },
         { h: 'ยอดขาย', w: 16, t: 'money', v: (m) => U.round2(m.sales) },

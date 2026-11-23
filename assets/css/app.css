@@ -492,3 +492,8 @@ html, body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-siz
 /* ช่องกรอกในฟอร์มกว้างไม่เกินคอลัมน์ (ตัวอักษรใหญ่ขึ้นแล้วไม่ล้นการ์ด) */
 .form-grid > *, .field { min-width: 0; }
 .field > .input { width: 100%; }
+/* ตารางวันที่ยอดถึงเกณฑ์ VAT: จอมือถือต้องเห็นครบทุกช่องโดยไม่ต้องเลื่อน */
+@media (max-width: 640px) {
+  .reach-tbl .tbl th, .reach-tbl .tbl td { padding: 9px 6px; font-size: 12.5px; white-space: nowrap; }
+  .reach-tbl .tbl .badge { display: block; width: fit-content; margin-top: 2px; }
+}
