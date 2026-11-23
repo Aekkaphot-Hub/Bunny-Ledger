@@ -46,9 +46,11 @@
       if (db) db.onclick = () => deleteImports(el);
 
       async function addFiles(files) {
+        const added = [];
         for (const file of files) {
           const item = { file, id: U.uid() };
           queue.push(item);
+          added.push(item);
           try {
             item.parsed = await I.readFile(file);
             const tpl = I.findTemplate(item.parsed.headers);
@@ -65,9 +67,29 @@
           }
           drawQueue(el);
         }
+        const dups = added.filter((it) => isDup(dupOf(it))).length;
+        if (dups) ui.toast(`นำเข้าซ้ำ: พบ ${U.num(dups)} ไฟล์ที่เคยนำเข้าแล้ว`, 'err');
       }
     },
   };
+
+  /* ไฟล์นี้ซ้ำกับที่เคยนำเข้า หรือซ้ำกับไฟล์ที่เลือกไว้ก่อนหน้าในรายการนี้ไหม */
+  const isDup = (d) => !!d && d.level !== 'changed';
+  function dupOf(it) {
+    if (!it.parsed) return null;
+    const fp = it.parsed.fp;
+    const earlier = fp && queue.slice(0, queue.indexOf(it)).find((x) => x.parsed && x.parsed.fp === fp);
+    if (earlier) return { level: 'queue', name: earlier.file.name };
+    return I.findDuplicate({ fp, filename: it.file.name, platform: it.platform, report: it.report, rows: it.built ? it.built.rowCount : null });
+  }
+  function dupNotice(d) {
+    if (!d) return '';
+    if (d.level === 'changed') return `<div class="notice warn mt-s">${A.icon('alert')}<div>ชื่อไฟล์เดียวกับที่นำเข้าเมื่อ ${U.thDateTime(d.rec.at)} แต่<b>ข้อมูลข้างในเปลี่ยนไป</b> — บันทึกเพื่ออัปเดตข้อมูลได้</div></div>`;
+    const why = d.level === 'queue'
+      ? `ข้อมูลเหมือนกับไฟล์ <b>${U.esc(d.name)}</b> ที่เลือกไว้ในรายการนี้`
+      : `${d.byName ? 'ชื่อไฟล์และจำนวนแถวตรงกับไฟล์' : 'ข้อมูลเหมือนกับไฟล์'} <b>${U.esc(d.rec.filename)}</b> ที่นำเข้าเมื่อ ${U.thDateTime(d.rec.at)}`;
+    return `<div class="notice red mt-s" role="alert">${A.icon('alert')}<div><b style="font-size:16px">นำเข้าซ้ำ</b><br>${why} • ถ้าบันทึกอีกครั้ง ยอดจะไม่นับเพิ่ม แต่ข้อมูลในไฟล์นี้จะเขียนทับข้อมูลเดิม</div></div>`;
+  }
 
   function rebuild(item) {
     try {
@@ -93,12 +115,15 @@
           { h: 'สินค้า', cls: 'ell', v: (r) => U.esc(r.items || '') }, { h: 'ยอดขาย', cls: 'num', v: (r) => U.money(r.grossSales) }, { h: 'เลขพัสดุ', v: (r) => U.esc(r.trackingNo || '–') }]
         : [{ h: 'เลขคำสั่งซื้อ', v: (r) => U.esc(r.orderNo) }, { h: 'วันที่เงินเข้า', v: (r) => U.thDate(r.payoutDate) }, { h: 'ยอดขาย', cls: 'num', v: (r) => U.money(r.grossSales) },
           { h: 'ค่าธรรมเนียม', cls: 'num', v: (r) => U.money(r.platformFees) }, { h: 'เงินเข้า', cls: 'num', v: (r) => U.money(r.actualPayout) }];
-      return `<div class="card" data-item="${it.id}">
+      const dup = dupOf(it);
+      const dupped = isDup(dup);
+      return `<div class="card" data-item="${it.id}"${dupped ? ' style="border:2px solid var(--red)"' : ''}>
         <div class="card-head">
-          <h3>${A.icon('file')} ${U.esc(it.file.name)}</h3>
+          <h3>${A.icon('file')} ${U.esc(it.file.name)}${dupped ? ' <span class="badge b-red">นำเข้าซ้ำ</span>' : ''}</h3>
           <button class="icon-btn" data-drop="${it.id}" title="เอาออก">${A.icon('x')}</button>
         </div>
-        <div class="row">
+        ${dupNotice(dup)}
+        <div class="row mt-s">
           <div class="field"><label>แพลตฟอร์ม</label><select class="input" data-f="platform">${A.PF_KEYS.map((k) => `<option value="${k}" ${it.platform === k ? 'selected' : ''}>${A.PLATFORMS[k].name}</option>`).join('')}</select></div>
           <div class="field"><label>ชนิดไฟล์</label><select class="input" data-f="report"><option value="orders" ${it.report === 'orders' ? 'selected' : ''}>คำสั่งซื้อ (ออเดอร์)</option><option value="income" ${it.report === 'income' ? 'selected' : ''}>รายได้ / การโอนเงิน</option></select></div>
           <div class="field"><label>ร้าน</label><select class="input" data-f="shop"><option value="">— ไม่ระบุ —</option>${shops.map((s) => `<option ${it.shop === s.name ? 'selected' : ''}>${U.esc(s.name)}</option>`).join('')}</select></div>
@@ -116,7 +141,7 @@
         <div class="row mt-s">
           <button class="btn ghost sm" data-map="${it.id}">${A.icon('edit')} ปรับคอลัมน์</button>
           <span class="spacer"></span>
-          <button class="btn" data-save="${it.id}" ${!recs.length || it.error ? 'disabled' : ''}>${A.icon('check')} บันทึก ${U.num(recs.length)} ออเดอร์${itemsNote(it.built && it.built.itemCount, recs.length)}</button>
+          <button class="btn${dupped ? ' danger' : ''}" data-save="${it.id}" ${!recs.length || it.error ? 'disabled' : ''}>${A.icon('check')} ${dupped ? 'บันทึกซ้ำ' : 'บันทึก'} ${U.num(recs.length)} ออเดอร์${itemsNote(it.built && it.built.itemCount, recs.length)}</button>
         </div>
       </div>`;
     }).join('');
@@ -142,7 +167,7 @@
         b.disabled = true;
         try {
           if (it.remember) await I.saveTemplate(it.parsed.headers, it.platform, it.report, it.mapping);
-          const r = await I.commit(it.built, { platform: it.platform, report: it.report, filename: it.file.name });
+          const r = await I.commit(it.built, { platform: it.platform, report: it.report, filename: it.file.name, fp: it.parsed.fp });
           ui.toast(`นำเข้าแล้ว: ใหม่ ${U.num(r.created)} • อัปเดต ${U.num(r.updated)} ออเดอร์${r.items && r.items !== r.total ? ` (${U.num(r.items)} รายการสินค้า)` : ''}${r.adjustments ? ` • เงินชดเชย ${r.adjustments} รายการ` : ''}`, 'ok');
           queue = queue.filter((x) => x !== it);
           drawQueue(el); drawHistory(el);

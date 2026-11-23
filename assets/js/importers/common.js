@@ -41,7 +41,41 @@
     best.summary = I.platformSummary(wb, best.sheet);
     best.withdrawals = I.withdrawals(wb, best.sheet);
     best.extraAdj = I.adjustmentSheet(wb, best.sheet);
+    best.fp = await I.fingerprint(best);
     return best;
+  };
+
+  /* ลายนิ้วมือของ "ข้อมูลในไฟล์" (ไม่ใช่ตัวไฟล์) — ดาวน์โหลดรายงานเดิมซ้ำหรือเรียงแถวต่างกันก็ยังตรงกัน
+     คำนวณหลังตัดข้อมูลลูกค้าแล้ว และเก็บเฉพาะค่าแฮชทางเดียว ย้อนกลับเป็นข้อมูลไม่ได้ */
+  I.fingerprint = async (parsed) => {
+    if (!window.crypto || !crypto.subtle) return null; // เปิดผ่าน http ที่ไม่ปลอดภัย → ใช้ชื่อไฟล์เทียบแทน
+    try {
+      const lines = (list) => list.map((r) => JSON.stringify(r)).sort();
+      const text = JSON.stringify({
+        headers: parsed.headers,
+        rows: lines(parsed.rows.slice(parsed.headerIdx + 1)),
+        withdrawals: lines(parsed.withdrawals || []),
+        adjustments: lines(parsed.extraAdj || []),
+        summary: parsed.summary || null,
+      });
+      const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+      return [...new Uint8Array(hash)].slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) { console.warn('fingerprint', e); return null; }
+  };
+
+  /* เช็กว่าไฟล์นี้เคยนำเข้าแล้วหรือยัง
+     same = ข้อมูลเหมือนเดิม (ไฟล์เก่าที่ยังไม่มีลายนิ้วมือ เทียบจากชื่อไฟล์ + จำนวนแถว)
+     changed = ชื่อไฟล์เดิม แต่ข้อมูลข้างในเปลี่ยนไป */
+  const baseName = (s) => String(s || '').toLowerCase().replace(/\s*\(\d+\)(?=\.[^.]+$)/, '').trim(); // ตัด " (1)" ที่เบราว์เซอร์เติมให้
+  I.findDuplicate = ({ fp, filename, platform, report, rows }) => {
+    const all = A.db.all('imports').sort((a, b) => (b.at || 0) - (a.at || 0));
+    const exact = fp ? all.find((x) => x.fp === fp) : null;
+    if (exact) return { level: 'same', rec: exact };
+    const name = baseName(filename);
+    const byName = all.filter((x) => baseName(x.filename) === name && x.platform === platform && x.report === report);
+    const old = byName.find((x) => (!x.fp || !fp) && x.rows === rows);
+    if (old) return { level: 'same', rec: old, byName: true };
+    return byName.length ? { level: 'changed', rec: byName[0] } : null;
   };
 
   /* ยอดสรุปที่แพลตฟอร์มคำนวณเอง (Shopee: ชีต Summary • TikTok: ชีต รายงาน) — ใช้ในหน้า "อ้างอิงข้อมูล"
@@ -531,7 +565,7 @@
   /* ---------- save to database (upsert by platform + order number) ---------- */
   I.makeId = (platform, orderNo) => `${platform}:${String(orderNo).replace(/\//g, '_')}`;
   const MANUAL = ['note', 'manualPaid', 'mismatchOk'];
-  I.commit = async (built, { platform, report, filename }) => {
+  I.commit = async (built, { platform, report, filename, fp }) => {
     // ทุกอย่างที่ไฟล์นี้นำเข้า ติดรหัสการนำเข้าไว้ → ลบไฟล์นำเข้าทีหลังได้ (I.undo)
     const impId = 'imp_' + U.uid();
     const today = U.today();
@@ -611,7 +645,7 @@
       return { ...cur, id, kind: w.kind, platform, ref: w.ref, date: w.date, amount: w.amount, status: w.status, source: filename, imp: impId };
     });
     if (wds.length) await A.db.putMany('deposits', wds);
-    await A.db.put('imports', { id: impId, at: Date.now(), filename, platform, report, rows: built.rowCount, orders: recs.length, items: built.itemCount, created, updated, skipped: built.skipped, adjustments: adj.length });
+    await A.db.put('imports', { id: impId, at: Date.now(), filename, fp: fp || null, platform, report, rows: built.rowCount, orders: recs.length, items: built.itemCount, created, updated, skipped: built.skipped, adjustments: adj.length });
     return { created, updated, total: recs.length, items: built.itemCount, adjustments: adj.length };
   };
 })(window.App);
