@@ -37,7 +37,7 @@
     const avg = doneMonths.length ? U.sum(doneMonths, (m) => m.revenue) / doneMonths.length : 0;
     // คาดการณ์วันที่จะถึงเกณฑ์ จากยอดเฉลี่ยต่อวัน 90 วันล่าสุดที่มีข้อมูล
     let projected = null, estPast = null, dailyAvg = 0, rateDays = 0, yearEndEst = null, needPerDay = null;
-    if (!crossDate && lastData && year === today.slice(0, 4)) {
+    if (!crossDate && lastData && firstData <= today && year === today.slice(0, 4)) {
       const base = lastData > today ? today : lastData;
       const back = U.addDays(base, -89);
       const start = firstData > back ? firstData : back;

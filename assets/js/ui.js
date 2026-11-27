@@ -117,7 +117,18 @@
       <div class="field mt"><label>โน้ตการติดตาม</label><textarea class="input" rows="2" data-note style="font-family:inherit">${U.esc(o.note || '')}</textarea></div>`;
     const actions = [];
     if (!C.isPaid(o)) actions.push({ label: `${A.icon('wallet')} ได้รับเงินแล้ว`, cls: 'mint', onClick: (close) => { close(); ui.markPaid(o.id); return false; } });
-    else actions.push({ label: `${A.icon('refresh')} ยกเลิกสถานะเงินเข้า`, cls: 'ghost', onClick: async () => { await A.db.put('orders', { ...o, actualPayout: null, payoutDate: null, payoutParts: null, manualPaid: false }); ui.toast('ย้อนกลับเป็นยังไม่ได้รับเงินแล้ว'); A.rerender(); } });
+    // ย้อนสถานะเงินเข้า: ลบยอดเงินเข้าของออเดอร์ทิ้ง → ต้องถามยืนยันก่อนเสมอ (ปุ่มนี้อยู่ข้างปุ่มอื่นในหน้าต่าง กดพลาดง่าย)
+    else actions.push({ label: `${A.icon('refresh')} ยกเลิกสถานะเงินเข้า`, cls: 'ghost', onClick: async (close) => {
+      close();
+      const msg = o.manualPaid
+        ? `ลบยอดเงินเข้า <b>${U.money(o.actualPayout)}</b> ที่บันทึกเองไว้ แล้วกลับเป็น "ยังไม่ได้รับเงิน"`
+        : `ยอดเงินเข้า <b>${U.money(o.actualPayout)}</b> ของออเดอร์นี้<b>มาจากไฟล์ที่นำเข้า</b> ถ้ายกเลิก ยอดนี้จะหายจากรายงานเงินเข้า และจะกลับมาเมื่อนำเข้าไฟล์รายได้นั้นอีกครั้ง`;
+      if (!(await ui.confirm('ยกเลิกสถานะเงินเข้า?', msg, 'ยกเลิกสถานะเงินเข้า', true))) return false;
+      await A.db.put('orders', { ...(A.db.get('orders', o.id) || o), actualPayout: null, payoutDate: null, payoutParts: null, manualPaid: false });
+      ui.toast('ย้อนกลับเป็นยังไม่ได้รับเงินแล้ว');
+      A.rerender();
+      return false;
+    } });
     if (o.status === 'shipped' || o.status === 'pending_ship') actions.push({ label: `${A.icon('check')} ลูกค้าได้รับแล้ว`, cls: 'blue', onClick: async () => { await A.db.put('orders', { ...o, status: 'delivered', deliveredDate: o.deliveredDate || U.today() }); ui.toast('บันทึกว่าลูกค้าได้รับของแล้ว', 'ok'); A.rerender(); } });
     actions.push({ label: 'บันทึกโน้ต', onClick: async (_c, root) => { await A.db.put('orders', { ...A.db.get('orders', o.id), note: root.querySelector('[data-note]').value.trim() }); ui.toast('บันทึกแล้ว', 'ok'); A.rerender(); } });
     const m = ui.modal({ title: 'รายละเอียดออเดอร์', body, actions, wide: false });
